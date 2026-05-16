@@ -118,7 +118,10 @@ async def get_stats_overview(session: AsyncSession) -> dict:
     ).scalar_one()
     success_rate = done_count / total if total > 0 else 0.0
 
-    # Decision counts
+    # Decision counts. TradingAgents stores decisions as title-case strings
+    # ("Buy" / "Sell" / "Hold") from the SignalProcessor. We compare on the
+    # uppercased value so any future variation (e.g. "BUY", "buy") still
+    # aggregates correctly and the Top Signal card stops showing 0/0/0.
     decisions: dict[str, int] = {}
     buy_count = 0
     sell_count = 0
@@ -128,7 +131,7 @@ async def get_stats_overview(session: AsyncSession) -> dict:
             await session.execute(
                 select(func.count())
                 .select_from(RunIndex)
-                .where(RunIndex.decision == decision)
+                .where(func.upper(RunIndex.decision) == decision)
             )
         ).scalar_one()
         decisions[decision] = cnt
@@ -190,9 +193,13 @@ async def get_stats_overview(session: AsyncSession) -> dict:
 
     top_signal = None
     if top_signal_row is not None:
+        # Upper-case the decision for the frontend's SignalBadge, which
+        # discriminates on "BUY"/"SELL"/"HOLD" and would render a neutral
+        # placeholder for the raw "Hold" / "Buy" stored by the agents.
+        raw_decision = top_signal_row.decision or ""
         top_signal = {
             "ticker": top_signal_row.ticker,
-            "decision": top_signal_row.decision,
+            "decision": raw_decision.upper(),
             "confidence": 0.0,  # confidence not yet stored in run_index
         }
 
