@@ -79,6 +79,7 @@ async def _build_run_config(session: AsyncSession) -> dict:
         "anthropic_api_key": "ANTHROPIC_API_KEY",
         "google_api_key": "GOOGLE_API_KEY",
         "moonshot_api_key": "MOONSHOT_API_KEY",
+        "kimi_api_key": "KIMI_API_KEY",
     }
     for db_key, env_var in key_env_map.items():
         if db_key in setting_map and setting_map[db_key].value_encrypted:
@@ -96,9 +97,10 @@ async def _build_run_config(session: AsyncSession) -> dict:
     provider = (config.get("llm_provider") or "").lower()
     provider_key_bridge = {
         "moonshot": "MOONSHOT_API_KEY",
+        "kimi":     "KIMI_API_KEY",
         "deepseek": "DEEPSEEK_API_KEY",
-        "qwen": "DASHSCOPE_API_KEY",
-        "xai": "XAI_API_KEY",
+        "qwen":     "DASHSCOPE_API_KEY",
+        "xai":      "XAI_API_KEY",
     }
     if provider in provider_key_bridge and provider_key_bridge[provider] in os.environ:
         os.environ["OPENAI_API_KEY"] = os.environ[provider_key_bridge[provider]]
@@ -107,6 +109,7 @@ async def _build_run_config(session: AsyncSession) -> dict:
     # single canonical endpoint, so the user doesn't need to remember it.
     provider_default_base_url = {
         "moonshot": "https://api.moonshot.ai/v1",
+        "kimi":     "https://api.kimi.com/coding/v1",
         "deepseek": "https://api.deepseek.com/v1",
     }
     if provider in provider_default_base_url and not config.get("backend_url"):

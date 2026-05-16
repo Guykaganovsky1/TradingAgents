@@ -70,6 +70,7 @@ async def get_settings_endpoint(
         codex_planner_enabled=codex_val.lower() in ("true", "1", "yes") if codex_val else False,
         has_alpha_vantage_key=has_secret(SettingsKey.alpha_vantage_api_key),
         has_moonshot_key=has_secret(SettingsKey.moonshot_api_key),
+        has_kimi_key=has_secret(SettingsKey.kimi_api_key),
     )
 
 

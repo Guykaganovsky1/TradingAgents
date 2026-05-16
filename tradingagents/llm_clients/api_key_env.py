@@ -30,6 +30,10 @@ PROVIDER_API_KEY_ENV: dict[str, Optional[str]] = {
     "minimax":    "MINIMAX_API_KEY",
     "minimax-cn": "MINIMAX_CN_API_KEY",
     "openrouter": "OPENROUTER_API_KEY",
+    # Moonshot AI standard endpoint (api.moonshot.ai/v1, sk-* keys)
+    "moonshot":   "MOONSHOT_API_KEY",
+    # Kimi for Coding (api.kimi.com/coding/v1, sk-kimi-* keys, UA-gated)
+    "kimi":       "KIMI_API_KEY",
     # Local runtimes do not authenticate.
     "ollama":     None,
 }

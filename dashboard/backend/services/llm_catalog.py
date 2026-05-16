@@ -90,6 +90,9 @@ def get_providers() -> list[str]:
     # Moonshot — OpenAI-compatible Kimi K2 + moonshot-v1 family.
     if "moonshot" not in upstream:
         upstream.append("moonshot")
+    # Kimi for Coding — separate endpoint (api.kimi.com/coding/v1), sk-kimi-* keys.
+    if "kimi" not in upstream:
+        upstream.append("kimi")
     return upstream
 
 
@@ -119,6 +122,14 @@ def get_model_options() -> dict[str, dict[str, list[dict[str, str]]]]:
     # Merge Moonshot models.
     if "moonshot" not in result:
         result["moonshot"] = {mode: list(opts) for mode, opts in MOONSHOT_MODELS.items()}
+    # Kimi for Coding — single model name. The /coding/v1 endpoint only
+    # exposes one model: 'kimi-for-coding' (display name Kimi-k2.6,
+    # 262k context, reasoning + vision capable).
+    if "kimi" not in result:
+        result["kimi"] = {
+            "deep":  [{"label": "Kimi-k2.6 (for Coding) - 262k ctx, reasoning", "value": "kimi-for-coding"}],
+            "quick": [{"label": "Kimi-k2.6 (for Coding) - 262k ctx, reasoning", "value": "kimi-for-coding"}],
+        }
     return result
 
 

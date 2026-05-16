@@ -18,12 +18,16 @@ interface ScanResultCardProps {
 
 const FACTOR_ORDER: FactorKey[] = ["technical", "news", "sentiment", "fundamental"];
 
-function formatPrice(price: number): string {
+function formatPrice(price: number | null): string {
+  if (price == null) return "—";
+  // Crypto can be sub-cent (e.g. SHIB at $0.000018) — let small values
+  // keep more digits so the card doesn't show "$0.00".
+  const digits = price < 1 ? Math.min(8, Math.max(2, -Math.floor(Math.log10(price)) + 2)) : 2;
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    maximumFractionDigits: digits,
   }).format(price);
 }
 
@@ -36,7 +40,12 @@ function formatVolume(vol: number | null): string {
 
 export function ScanResultCard({ rank, result }: ScanResultCardProps) {
   const isHighScore = result.composite_score >= 80;
-  const isPositive = result.price_change_24h_pct >= 0;
+  // price_change_24h_pct is null for stocks (Wikipedia scrape has no
+  // price feed). Render a neutral "—" badge in that case instead of
+  // crashing on .toFixed() / comparison-with-null.
+  const change = result.price_change_24h_pct;
+  const hasChange = change != null;
+  const isPositive = hasChange && change >= 0;
 
   return (
     <GlassCard
@@ -98,26 +107,38 @@ export function ScanResultCard({ rank, result }: ScanResultCardProps) {
         </div>
       </div>
 
-      {/* Price + change */}
+      {/* Price + change. Both can be null for stocks (no price feed
+          attached to the Wikipedia-scraped universe). Render placeholders
+          rather than crashing. */}
       <div className="flex items-center gap-3">
         <span className="text-sm font-semibold text-slate-200 tabular-nums">
           {formatPrice(result.price)}
         </span>
-        <span
-          className={cn(
-            "inline-flex items-center gap-0.5 text-xs font-semibold tabular-nums",
-            isPositive ? "text-emerald-400" : "text-red-400"
-          )}
-          aria-label={`24h change: ${result.price_change_24h_pct >= 0 ? "+" : ""}${result.price_change_24h_pct.toFixed(2)}%`}
-        >
-          {isPositive ? (
-            <TrendingUp size={12} aria-hidden="true" />
-          ) : (
-            <TrendingDown size={12} aria-hidden="true" />
-          )}
-          {result.price_change_24h_pct >= 0 ? "+" : ""}
-          {result.price_change_24h_pct.toFixed(2)}%
-        </span>
+        {hasChange ? (
+          <span
+            className={cn(
+              "inline-flex items-center gap-0.5 text-xs font-semibold tabular-nums",
+              isPositive ? "text-emerald-400" : "text-red-400"
+            )}
+            aria-label={`24h change: ${isPositive ? "+" : ""}${change.toFixed(2)}%`}
+          >
+            {isPositive ? (
+              <TrendingUp size={12} aria-hidden="true" />
+            ) : (
+              <TrendingDown size={12} aria-hidden="true" />
+            )}
+            {isPositive ? "+" : ""}
+            {change.toFixed(2)}%
+          </span>
+        ) : (
+          <span
+            className="inline-flex items-center text-[11px] text-slate-500"
+            aria-label="24h change not available"
+            title="Price feed unavailable for this universe"
+          >
+            24h —
+          </span>
+        )}
         {result.volume_usd_24h != null && (
           <span className="text-[11px] text-slate-500">
             Vol {formatVolume(result.volume_usd_24h)}

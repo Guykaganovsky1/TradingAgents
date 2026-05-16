@@ -50,6 +50,7 @@ function SettingsForm({ settings }: { settings: AppSettings }) {
     anthropic_api_key: "",
     google_api_key: "",
     moonshot_api_key: "",
+    kimi_api_key: "",
   });
 
   const [saving, setSaving] = useState(false);
@@ -59,6 +60,7 @@ function SettingsForm({ settings }: { settings: AppSettings }) {
   const [showAnthropic, setShowAnthropic] = useState(false);
   const [showGoogle, setShowGoogle] = useState(false);
   const [showMoonshot, setShowMoonshot] = useState(false);
+  const [showKimi, setShowKimi] = useState(false);
 
   /**
    * PATCH /api/settings takes a single {key, value} pair.
@@ -82,6 +84,7 @@ function SettingsForm({ settings }: { settings: AppSettings }) {
       if (secrets.anthropic_api_key) updates.push(["anthropic_api_key", secrets.anthropic_api_key]);
       if (secrets.google_api_key) updates.push(["google_api_key", secrets.google_api_key]);
       if (secrets.moonshot_api_key) updates.push(["moonshot_api_key", secrets.moonshot_api_key]);
+      if (secrets.kimi_api_key) updates.push(["kimi_api_key", secrets.kimi_api_key]);
 
       // Fire all patches sequentially (backend takes one at a time)
       for (const [key, value] of updates) {
@@ -153,6 +156,7 @@ function SettingsForm({ settings }: { settings: AppSettings }) {
                   "anthropic",
                   "google",
                   "moonshot",
+                  "kimi",        // Kimi for Coding (api.kimi.com/coding/v1)
                   "kimi-cli",
                   "codex",
                   "codex-cli",
@@ -269,6 +273,20 @@ function SettingsForm({ settings }: { settings: AppSettings }) {
               onToggleShow={() => setShowMoonshot((v) => !v)}
               value={secrets.moonshot_api_key}
               onChange={(v) => setSecrets({ ...secrets, moonshot_api_key: v })}
+              inputClass={inputClass}
+            />
+            <SecretField
+              label="Kimi for Coding Key (Kimi-k2.6)"
+              placeholder={
+                settings.has_kimi_key
+                  ? "••••••••••••••••••••"
+                  : "sk-kimi-... — from your Kimi Coding subscription"
+              }
+              isConfigured={Boolean(settings.has_kimi_key)}
+              show={showKimi}
+              onToggleShow={() => setShowKimi((v) => !v)}
+              value={secrets.kimi_api_key}
+              onChange={(v) => setSecrets({ ...secrets, kimi_api_key: v })}
               inputClass={inputClass}
             />
           </div>

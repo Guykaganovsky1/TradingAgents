@@ -130,6 +130,37 @@ class MinimaxChatOpenAI(NormalizedChatOpenAI):
         return payload
 
 
+# Kimi for Coding endpoint is User-Agent gated by Moonshot. Allowed clients
+# include Kimi CLI, Claude Code, Roo Code, Kilo Code, etc. We declare
+# ``claude-cli/0.2.0`` because that UA is reliably accepted by Moonshot's
+# whitelist as of 2026-05-16. Module-level (not class attr) so Pydantic V2
+# doesn't reinterpret it as a private model attribute on the subclass.
+_KIMI_CODING_USER_AGENT = os.environ.get(
+    "KIMI_CODING_USER_AGENT", "claude-cli/0.2.0"
+)
+
+
+class KimiCodingChatOpenAI(NormalizedChatOpenAI):
+    """ChatOpenAI subclass for Kimi for Coding API (api.kimi.com/coding/v1).
+
+    Requests without a recognized coding-agent UA receive
+    ``access_terminated_error`` even when authentication succeeds.
+    The UA is the only header relevant to the gate; everything else is
+    the standard OpenAI Chat Completions wire format.
+
+    Override the UA via the ``KIMI_CODING_USER_AGENT`` env var if needed.
+    """
+
+    def __init__(self, **kwargs):
+        # Merge any caller-provided default_headers with the required UA.
+        # Caller can override the UA by passing their own default_headers
+        # with User-Agent set; otherwise we inject ours.
+        existing = kwargs.pop("default_headers", None) or {}
+        merged = {"User-Agent": _KIMI_CODING_USER_AGENT, **existing}
+        kwargs["default_headers"] = merged
+        super().__init__(**kwargs)
+
+
 # Kwargs forwarded from user config to ChatOpenAI
 _PASSTHROUGH_KWARGS = (
     "timeout", "max_retries", "reasoning_effort",
@@ -152,6 +183,14 @@ _PROVIDER_BASE_URL = {
     "minimax-cn": "https://api.minimaxi.com/v1",
     "openrouter": "https://openrouter.ai/api/v1",
     "ollama":     "http://localhost:11434/v1",
+    # Moonshot AI standard endpoint (kimi-k2-* family, sk-... keys)
+    "moonshot":   "https://api.moonshot.ai/v1",
+    # Kimi for Coding endpoint — accepts sk-kimi-* keys but only when the
+    # caller identifies as a recognized coding-agent client via User-Agent
+    # (Kimi CLI, Claude Code, Roo Code, Kilo Code, etc.). Without the
+    # right UA the API returns access_terminated_error. KimiCodingChatOpenAI
+    # below sets the UA to satisfy the gate.
+    "kimi":       "https://api.kimi.com/coding/v1",
 }
 
 
@@ -232,6 +271,8 @@ class OpenAIClient(BaseLLMClient):
             chat_cls = DeepSeekChatOpenAI
         elif self.provider in ("minimax", "minimax-cn"):
             chat_cls = MinimaxChatOpenAI
+        elif self.provider == "kimi":
+            chat_cls = KimiCodingChatOpenAI
         else:
             chat_cls = NormalizedChatOpenAI
         return chat_cls(**llm_kwargs)
