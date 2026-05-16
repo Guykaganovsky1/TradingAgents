@@ -49,6 +49,7 @@ function SettingsForm({ settings }: { settings: AppSettings }) {
     openai_api_key: "",
     anthropic_api_key: "",
     google_api_key: "",
+    moonshot_api_key: "",
   });
 
   const [saving, setSaving] = useState(false);
@@ -57,6 +58,7 @@ function SettingsForm({ settings }: { settings: AppSettings }) {
   const [showOpenai, setShowOpenai] = useState(false);
   const [showAnthropic, setShowAnthropic] = useState(false);
   const [showGoogle, setShowGoogle] = useState(false);
+  const [showMoonshot, setShowMoonshot] = useState(false);
 
   /**
    * PATCH /api/settings takes a single {key, value} pair.
@@ -79,6 +81,7 @@ function SettingsForm({ settings }: { settings: AppSettings }) {
       if (secrets.openai_api_key) updates.push(["openai_api_key", secrets.openai_api_key]);
       if (secrets.anthropic_api_key) updates.push(["anthropic_api_key", secrets.anthropic_api_key]);
       if (secrets.google_api_key) updates.push(["google_api_key", secrets.google_api_key]);
+      if (secrets.moonshot_api_key) updates.push(["moonshot_api_key", secrets.moonshot_api_key]);
 
       // Fire all patches sequentially (backend takes one at a time)
       for (const [key, value] of updates) {
@@ -149,6 +152,7 @@ function SettingsForm({ settings }: { settings: AppSettings }) {
                   "openai",
                   "anthropic",
                   "google",
+                  "moonshot",
                   "codex",
                   "codex-cli",
                   "xai",
@@ -250,6 +254,20 @@ function SettingsForm({ settings }: { settings: AppSettings }) {
               onToggleShow={() => setShowGoogle((v) => !v)}
               value={secrets.google_api_key}
               onChange={(v) => setSecrets({ ...secrets, google_api_key: v })}
+              inputClass={inputClass}
+            />
+            <SecretField
+              label="Moonshot API Key (Kimi K2)"
+              placeholder={
+                settings.has_moonshot_key
+                  ? "••••••••••••••••••••"
+                  : "sk-... — from https://platform.moonshot.ai/console/api-keys"
+              }
+              isConfigured={Boolean(settings.has_moonshot_key)}
+              show={showMoonshot}
+              onToggleShow={() => setShowMoonshot((v) => !v)}
+              value={secrets.moonshot_api_key}
+              onChange={(v) => setSecrets({ ...secrets, moonshot_api_key: v })}
               inputClass={inputClass}
             />
           </div>

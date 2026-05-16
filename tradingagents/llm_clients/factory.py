@@ -9,6 +9,7 @@ _OPENAI_COMPATIBLE = (
     "glm", "glm-cn",
     "minimax", "minimax-cn",
     "ollama", "openrouter",
+    "moonshot",  # Moonshot AI — Kimi K2 + moonshot-v1 family, OpenAI-compatible
 )
 
 

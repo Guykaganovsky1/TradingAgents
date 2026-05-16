@@ -13,6 +13,23 @@ logger = logging.getLogger("dashboard.services.llm_catalog")
 # The Codex API (Responses API) and Codex CLI are exposed as separate
 # providers so the user can wire the coding-planner agent independently.
 # ---------------------------------------------------------------------------
+MOONSHOT_MODELS: dict[str, list[dict[str, str]]] = {
+    # Moonshot AI models. All OpenAI-compatible function-calling.
+    # Endpoint: https://api.moonshot.ai/v1
+    "deep": [
+        {"label": "Kimi K2 (latest preview) — 200k ctx, strong reasoning", "value": "kimi-k2-0905-preview"},
+        {"label": "Kimi K2 (turbo) — Faster Kimi K2 variant", "value": "kimi-k2-turbo-preview"},
+        {"label": "Moonshot v1 128k — Long-context legacy", "value": "moonshot-v1-128k"},
+        {"label": "Kimi Latest — Auto-rolling latest stable", "value": "kimi-latest"},
+    ],
+    "quick": [
+        {"label": "Moonshot v1 8k — Cheapest, short tasks", "value": "moonshot-v1-8k"},
+        {"label": "Moonshot v1 32k — Mid-range, balanced", "value": "moonshot-v1-32k"},
+        {"label": "Kimi K2 (turbo) — Fast K2 variant", "value": "kimi-k2-turbo-preview"},
+    ],
+}
+
+
 CODEX_EXTRAS: dict[str, dict[str, list[dict[str, str]]]] = {
     "codex": {
         "deep": [
@@ -55,6 +72,9 @@ def get_providers() -> list[str]:
     for codex_provider in CODEX_EXTRAS:
         if codex_provider not in upstream:
             upstream.append(codex_provider)
+    # Moonshot — OpenAI-compatible Kimi K2 + moonshot-v1 family.
+    if "moonshot" not in upstream:
+        upstream.append("moonshot")
     return upstream
 
 
@@ -81,6 +101,9 @@ def get_model_options() -> dict[str, dict[str, list[dict[str, str]]]]:
     for codex_provider, modes in CODEX_EXTRAS.items():
         if codex_provider not in result:
             result[codex_provider] = {mode: list(opts) for mode, opts in modes.items()}
+    # Merge Moonshot models.
+    if "moonshot" not in result:
+        result["moonshot"] = {mode: list(opts) for mode, opts in MOONSHOT_MODELS.items()}
     return result
 
 

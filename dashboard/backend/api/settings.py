@@ -69,6 +69,7 @@ async def get_settings_endpoint(
         auto_save=auto_save_val.lower() not in ("false", "0", "no") if auto_save_val else True,
         codex_planner_enabled=codex_val.lower() in ("true", "1", "yes") if codex_val else False,
         has_alpha_vantage_key=has_secret(SettingsKey.alpha_vantage_api_key),
+        has_moonshot_key=has_secret(SettingsKey.moonshot_api_key),
     )
 
 

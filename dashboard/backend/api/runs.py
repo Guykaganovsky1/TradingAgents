@@ -73,11 +73,12 @@ async def _build_run_config(session: AsyncSession) -> dict:
             setting_map["codex_planner_enabled"].value_plain.lower() == "true"
         )
 
-    # Decrypt and inject API keys into environment (TradingAgentsGraph reads from env)
+# Decrypt and inject API keys into environment (TradingAgentsGraph reads from env)
     key_env_map = {
         "openai_api_key": "OPENAI_API_KEY",
         "anthropic_api_key": "ANTHROPIC_API_KEY",
         "google_api_key": "GOOGLE_API_KEY",
+        "moonshot_api_key": "MOONSHOT_API_KEY",
     }
     for db_key, env_var in key_env_map.items():
         if db_key in setting_map and setting_map[db_key].value_encrypted:
@@ -86,6 +87,30 @@ async def _build_run_config(session: AsyncSession) -> dict:
                 os.environ[env_var] = plain
             except Exception:
                 logger.warning("Failed to decrypt %s", db_key)
+
+    # Provider-specific bridging: the upstream OpenAIClient reads
+    # OPENAI_API_KEY from env regardless of the actual provider (it just
+    # treats Moonshot/Qwen/DeepSeek/etc. as OpenAI-compatible endpoints).
+    # Map the provider-specific stored key onto OPENAI_API_KEY at run time
+    # so users don't have to put their Moonshot key under "OpenAI" in the UI.
+    provider = (config.get("llm_provider") or "").lower()
+    provider_key_bridge = {
+        "moonshot": "MOONSHOT_API_KEY",
+        "deepseek": "DEEPSEEK_API_KEY",
+        "qwen": "DASHSCOPE_API_KEY",
+        "xai": "XAI_API_KEY",
+    }
+    if provider in provider_key_bridge and provider_key_bridge[provider] in os.environ:
+        os.environ["OPENAI_API_KEY"] = os.environ[provider_key_bridge[provider]]
+
+    # Auto-default the backend_url for provider families that have a
+    # single canonical endpoint, so the user doesn't need to remember it.
+    provider_default_base_url = {
+        "moonshot": "https://api.moonshot.ai/v1",
+        "deepseek": "https://api.deepseek.com/v1",
+    }
+    if provider in provider_default_base_url and not config.get("backend_url"):
+        config["backend_url"] = provider_default_base_url[provider]
 
     return config
 
