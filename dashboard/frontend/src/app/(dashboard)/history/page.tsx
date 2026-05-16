@@ -1,13 +1,13 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { History, ChevronRight, Trash2, FileText } from "lucide-react";
+import { History, ChevronRight, Trash2, FileText, Square } from "lucide-react";
 import { toast } from "sonner";
 import { GlassCard } from "@/components/glass-card";
 import { SignalBadge } from "@/components/signal-badge";
 import { EmptyState } from "@/components/empty-state";
 import { useHistory, mutateHistory } from "@/hooks/use-history";
-import { deleteRun } from "@/lib/api";
+import { deleteRun, cancelRun } from "@/lib/api";
 import { t } from "@/lib/i18n/en";
 import { formatDate, formatTokens } from "@/lib/format";
 import type { RunIndex, Signal } from "@/lib/types";
@@ -119,6 +119,24 @@ function HistoryRunCard({ run }: { run: RunIndex }) {
     }
   }
 
+  async function handleStop(e: React.MouseEvent) {
+    // History rows are Links — without these the click navigates to the
+    // detail page before the cancel POST fires.
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      const result = await cancelRun(run.run_id);
+      if (result.cancelled) {
+        toast.success(`Stopped run for ${run.ticker}`);
+      } else {
+        toast.info("Run already finished");
+      }
+      mutateHistory();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to stop run");
+    }
+  }
+
   const statusColor =
     run.status === "complete"
       ? ""
@@ -173,6 +191,21 @@ function HistoryRunCard({ run }: { run: RunIndex }) {
 
       {/* Actions */}
       <div className="flex items-center gap-2 shrink-0">
+        {/* Stop button — only for in-flight runs (status='running'). Always
+            visible (not hover-gated) because aborting a hung run is high-
+            intent and the user needs to find it fast. */}
+        {run.status === "running" && (
+          <button
+            type="button"
+            onClick={handleStop}
+            aria-label={`Stop running analysis for ${run.ticker}`}
+            className="inline-flex items-center gap-1 rounded-md border border-red-400/30 bg-red-500/[0.10] px-2 py-1 text-[11px] font-semibold text-red-300 hover:bg-red-500/[0.20] hover:border-red-400/50 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+          >
+            <Square size={11} fill="currentColor" aria-hidden="true" />
+            Stop
+          </button>
+        )}
+
         {/* Explicit "View Full Report" CTA — only shows for runs that have
             something to show. Errored/running rows show no button (whole row
             still navigates on click via the outer <Link>). */}
