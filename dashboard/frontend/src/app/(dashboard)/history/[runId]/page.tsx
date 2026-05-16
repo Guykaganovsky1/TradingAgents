@@ -136,12 +136,10 @@ function RunDetail({ run }: { run: RunDetail }) {
       </div>
 
       {/* Full briefing — every analyst's report rendered inline as one
-          easy-to-scan document. The Final Decision pins at top so the
-          conclusion comes first. Each section is a markdown-rendered card.
-          Backed by the same /api/runs/{id}/report/{section} endpoints
-          the tabs use, but fetched in parallel and shown all at once. */}
-      {run.status === "complete" && (
-        <RunReportsView runId={run.run_id} />
+          easy-to-scan document. Backend exposes both "done" (internal)
+          and "complete" (spec alias) as terminal-success values. */}
+      {(run.status === "complete" || run.status === "done") && (
+        <RunReportsView runId={run.run_id ?? run.id} />
       )}
     </>
   );
