@@ -11,11 +11,11 @@ import { ConnectionIndicator } from "@/components/connection-indicator";
 import { DecisionCard } from "@/components/decision-card";
 import { useRunStream } from "@/hooks/use-run-stream";
 import { useSettings } from "@/hooks/use-settings";
-import { startRun } from "@/lib/api";
+import { startRun, cancelRun } from "@/lib/api";
 import { t } from "@/lib/i18n/en";
 import { mutateHistory } from "@/hooks/use-history";
 import { formatTokens } from "@/lib/format";
-import { Play, Loader2, FileText, ArrowRight, Settings as SettingsIcon } from "lucide-react";
+import { Play, Loader2, FileText, ArrowRight, Settings as SettingsIcon, Square } from "lucide-react";
 import Link from "next/link";
 import type { AnalystKey } from "@/lib/types";
 
@@ -42,6 +42,7 @@ function RunPageInner() {
   const [runId, setRunId] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
+  const [isStopping, setIsStopping] = useState(false);
 
   // WS stream
   const stream = useRunStream(runId);
@@ -153,6 +154,33 @@ function RunPageInner() {
     !isStarting &&
     (!hasStarted || stream.isComplete);
 
+  // A run is "in flight" once we have an id and the stream hasn't reported
+  // completion or an error. That's when Stop is meaningful — finished runs
+  // can be deleted from the History page instead.
+  const isInFlight =
+    Boolean(runId) && hasStarted && !stream.isComplete && !stream.errorMessage;
+
+  async function handleStop() {
+    if (!runId || isStopping) return;
+    setIsStopping(true);
+    try {
+      const result = await cancelRun(runId);
+      if (result.cancelled) {
+        toast.success("Analysis stopped");
+      } else {
+        toast.info("Run already finished — nothing to stop");
+      }
+      // Don't reset runId — let the WebSocket stream report the cancelled
+      // state and let the user navigate to /history if they want to see
+      // what the agents managed to produce before the cancel signal.
+      mutateHistory();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to stop run");
+    } finally {
+      setIsStopping(false);
+    }
+  }
+
   return (
     <div className="page-enter space-y-5">
       {/* Header */}
@@ -239,20 +267,39 @@ function RunPageInner() {
               </Link>
             </div>
 
-            {/* Start button */}
-            <button
-              type="button"
-              onClick={handleStart}
-              disabled={!canStart}
-              className="w-full flex items-center justify-center gap-2 rounded-[10px] py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40"
-              style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
-            >
-              {isStarting ? (
-                <><Loader2 size={16} className="animate-spin" /> Starting…</>
-              ) : (
-                <><Play size={16} /> {t.run.startAnalysis}</>
-              )}
-            </button>
+            {/* Start / Stop button — Start when idle, Stop when in flight.
+                We never show both: a run is either yours-to-launch or
+                yours-to-cancel. After completion the Start button comes
+                back so the user can run a different ticker. */}
+            {isInFlight ? (
+              <button
+                type="button"
+                onClick={handleStop}
+                disabled={isStopping}
+                className="w-full flex items-center justify-center gap-2 rounded-[10px] py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40 border border-red-400/30 bg-red-500/[0.12] text-red-200 hover:bg-red-500/[0.20]"
+                aria-label="Stop the running analysis"
+              >
+                {isStopping ? (
+                  <><Loader2 size={16} className="animate-spin" /> Stopping…</>
+                ) : (
+                  <><Square size={14} fill="currentColor" /> Stop Analysis</>
+                )}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleStart}
+                disabled={!canStart}
+                className="w-full flex items-center justify-center gap-2 rounded-[10px] py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+                style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
+              >
+                {isStarting ? (
+                  <><Loader2 size={16} className="animate-spin" /> Starting…</>
+                ) : (
+                  <><Play size={16} /> {t.run.startAnalysis}</>
+                )}
+              </button>
+            )}
 
             {/* Run result — decision card */}
             {stream.isComplete && stream.decision && (

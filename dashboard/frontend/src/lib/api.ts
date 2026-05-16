@@ -325,6 +325,24 @@ export async function deleteRun(runId: string): Promise<void> {
   if (!res.ok) throw new ApiError(res.status, `DELETE run failed`);
 }
 
+/**
+ * Stop a running analysis without removing it from history.
+ * Returns whether a live task was actually cancelled (false if the run
+ * had already finished by the time the request arrived — that's fine,
+ * the call is idempotent).
+ */
+export async function cancelRun(
+  runId: string,
+): Promise<{ cancelled: boolean }> {
+  return apiFetch(
+    `/runs/${runId}/cancel`,
+    z.object({ cancelled: z.boolean(), run_id: z.string() }).transform((v) => ({
+      cancelled: v.cancelled,
+    })),
+    { method: "POST" },
+  );
+}
+
 export async function validateTicker(
   symbol: string
 ): Promise<ValidateTickerResponse> {

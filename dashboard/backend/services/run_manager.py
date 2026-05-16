@@ -79,6 +79,29 @@ class RunManager:
         task = self._tasks.get(run_id)
         return task is not None and not task.done()
 
+    async def cancel(self, run_id: str, timeout: float = 5.0) -> bool:
+        """Cancel a running analysis. Returns True if a live task was cancelled.
+
+        The task receives asyncio.CancelledError; `_run_analysis` catches it
+        and marks the row as 'error' with 'Cancelled by user' so the DB
+        reflects reality before we drop the row. We await up to `timeout`
+        seconds for the task to finish unwinding so callers can safely
+        delete the DB row immediately after.
+        """
+        task = self._tasks.get(run_id)
+        if task is None or task.done():
+            return False
+        task.cancel()
+        try:
+            await asyncio.wait_for(task, timeout=timeout)
+        except (asyncio.CancelledError, TimeoutError):
+            # Either it cooperated and raised CancelledError, or it took
+            # too long — either way we've issued the cancel signal.
+            pass
+        finally:
+            self._tasks.pop(run_id, None)
+        return True
+
     def start_run(
         self,
         run_id: str,
@@ -215,6 +238,30 @@ class RunManager:
                 "decision": stats["decision"],
                 "timestamp": datetime.now(tz=UTC).isoformat(),
             })
+
+        except asyncio.CancelledError:
+            # User explicitly stopped the run (DELETE /api/runs/{id} or
+            # POST /api/runs/{id}/cancel). Mark the DB row + emit a final
+            # event so connected clients see the run end cleanly, then
+            # re-raise so the task itself terminates with CancelledError.
+            logger.info("Run %s cancelled by user", run_id)
+            _done_flag.set()
+            try:
+                async with db_session_factory() as session:
+                    await runs_repo.update_run_status(
+                        session, run_id, "error",
+                        error_message="Cancelled by user",
+                    )
+            except Exception:  # noqa: BLE001
+                # Best-effort: don't shadow the cancellation if DB cleanup fails.
+                logger.warning("Failed to update DB after cancel of %s", run_id, exc_info=True)
+            self.publish(run_id, {
+                "type": "status",
+                "status": "error",
+                "error": "Cancelled by user",
+                "timestamp": datetime.now(tz=UTC).isoformat(),
+            })
+            raise
 
         except Exception as exc:
             logger.exception("Run %s failed: %s", run_id, exc)

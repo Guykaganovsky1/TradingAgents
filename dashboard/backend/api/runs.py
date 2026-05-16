@@ -204,19 +204,56 @@ async def get_run(
     return RunSummary.model_validate(run)
 
 
+@router.post("/{run_id}/cancel", status_code=200)
+async def cancel_run(
+    run_id: str,
+    session: AsyncSession = Depends(get_session),
+    _auth=Depends(require_auth),
+) -> dict:
+    """Stop a running analysis without removing it from history.
+
+    Marks the run as 'error' with 'Cancelled by user'. The DB row stays
+    so the user can still browse what the agents produced before the
+    cancellation (the analyst loop may have written partial reports).
+    Idempotent: cancelling an already-finished run is a no-op.
+    """
+    run = await runs_repo.get_run(session, run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    mgr = get_run_manager()
+    cancelled = await mgr.cancel(run_id)
+    get_audit_logger().info("run.cancel id=%s was_running=%s", run_id, cancelled)
+    return {"cancelled": cancelled, "run_id": run_id}
+
+
 @router.delete("/{run_id}", status_code=204)
 async def delete_run(
     run_id: str,
     session: AsyncSession = Depends(get_session),
     _auth=Depends(require_auth),
 ) -> None:
+    """Remove a run from history. If still running, cancel it first.
+
+    Previously refused with 409 when the run was in flight, which left
+    the user unable to abort a stuck analysis. Now we issue the cancel
+    signal, wait briefly for the asyncio task to unwind, then drop the
+    DB row.
+    """
     run = await runs_repo.get_run(session, run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Run not found")
+
     if run.status == "running":
-        raise HTTPException(status_code=409, detail="Cannot delete a running run")
+        mgr = get_run_manager()
+        await mgr.cancel(run_id)
+        # Re-fetch — the cancel handler updated status to 'error' via
+        # its own session, so our snapshot is stale.
+        await session.refresh(run)
+
     await session.delete(run)
     await session.commit()
+    get_audit_logger().info("run.delete id=%s", run_id)
 
 
 @router.get("/{run_id}/report/{section}")
