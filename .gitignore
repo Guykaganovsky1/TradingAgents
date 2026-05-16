@@ -226,3 +226,7 @@ dashboard/frontend/.next/
 dashboard/frontend/playwright-report/
 dashboard/frontend/test-results/
 dashboard/.env
+
+# Frontend dev-server runtime state
+dashboard/.frontend.pgid
+dashboard/.frontend.log

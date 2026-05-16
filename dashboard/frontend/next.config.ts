@@ -1,12 +1,22 @@
 import type { NextConfig } from "next";
-import path from "path";
 
 const nextConfig: NextConfig = {
   output: "standalone",
 
-  // Ensures standalone build produces a portable directory structure
-  // by tracing from the monorepo root, not from inside frontend/.
-  outputFileTracingRoot: path.join(__dirname, "../../"),
+  // Scope file tracing to the frontend directory ONLY.
+  //
+  // WHY: previously set to "../../" which is `.claude/worktrees/` —
+  // Turbopack then watched every sibling worktree + ruflo's `.swarm/`
+  // HNSW binary index. On each HMR cycle the PostCSS worker pool
+  // fork-bombed into the thousands (3990+ processes observed and
+  // shut the machine down). Scoping the trace root to this dir
+  // contains the watcher.
+  outputFileTracingRoot: __dirname,
+
+  // Bound Turbopack to this directory only — belt + suspenders.
+  turbopack: {
+    root: __dirname,
+  },
 
   // Server-only env vars (not exposed to browser)
   // BACKEND_URL and DASHBOARD_API_TOKEN are used in the BFF proxy

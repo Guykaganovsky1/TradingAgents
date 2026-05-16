@@ -1,0 +1,31 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dashboard-backend",
+      "runtimeExecutable": "dashboard/backend/.venv/bin/python",
+      "runtimeArgs": [
+        "-m",
+        "uvicorn",
+        "main:app",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8788",
+        "--app-dir",
+        "dashboard/backend"
+      ],
+      "port": 8788
+    },
+    {
+      "name": "dashboard-frontend",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--dir",
+        "dashboard/frontend",
+        "dev"
+      ],
+      "port": 3000
+    }
+  ]
+}

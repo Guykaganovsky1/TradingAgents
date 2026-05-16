@@ -37,33 +37,30 @@ fi
 BACKEND_PORT="${DASHBOARD_PORT:-8787}"
 FRONTEND_PORT=3000
 
-# ── PID tracking ──────────────────────────────────────────────────────────
-BACKEND_PID=""
-FRONTEND_PID=""
+# ── PID/PGID tracking ─────────────────────────────────────────────────────
+# We kill PROCESS GROUPS not parent PIDs — Next 16 spawns dozens of
+# postcss/swc/jest-worker children that survive a plain `kill PID`.
+BACKEND_PGID=""
+FRONTEND_PGID=""
 
 # ── Cleanup on exit ────────────────────────────────────────────────────────
 cleanup() {
     echo -e "\n${YELLOW}[dev]${RESET} Shutting down…"
 
-    if [[ -n "${BACKEND_PID}" ]] && kill -0 "${BACKEND_PID}" 2>/dev/null; then
-        echo -e "${YELLOW}[dev]${RESET} Stopping backend (PID ${BACKEND_PID})"
-        kill "${BACKEND_PID}" 2>/dev/null || true
+    # Backend: kill its process group
+    if [[ -n "${BACKEND_PGID}" ]] && kill -0 -- "-${BACKEND_PGID}" 2>/dev/null; then
+        echo -e "${YELLOW}[dev]${RESET} Stopping backend group ${BACKEND_PGID}"
+        kill -TERM -- "-${BACKEND_PGID}" 2>/dev/null || true
     fi
 
-    if [[ -n "${FRONTEND_PID}" ]] && kill -0 "${FRONTEND_PID}" 2>/dev/null; then
-        echo -e "${YELLOW}[dev]${RESET} Stopping frontend (PID ${FRONTEND_PID})"
-        kill "${FRONTEND_PID}" 2>/dev/null || true
-    fi
+    # Frontend: defer to stop-frontend.sh which knows about workers
+    bash "${SCRIPT_DIR}/stop-frontend.sh" 2>&1 | sed "s/^/  /"
 
-    # Give processes a moment to exit gracefully
     sleep 1
 
-    # Force-kill any stragglers
-    if [[ -n "${BACKEND_PID}" ]] && kill -0 "${BACKEND_PID}" 2>/dev/null; then
-        kill -9 "${BACKEND_PID}" 2>/dev/null || true
-    fi
-    if [[ -n "${FRONTEND_PID}" ]] && kill -0 "${FRONTEND_PID}" 2>/dev/null; then
-        kill -9 "${FRONTEND_PID}" 2>/dev/null || true
+    # Force-kill any backend stragglers
+    if [[ -n "${BACKEND_PGID}" ]] && kill -0 -- "-${BACKEND_PGID}" 2>/dev/null; then
+        kill -KILL -- "-${BACKEND_PGID}" 2>/dev/null || true
     fi
 
     echo -e "${YELLOW}[dev]${RESET} Done."
@@ -106,34 +103,48 @@ echo -e "${CYAN}[dev]${RESET} Frontend → http://localhost:${FRONTEND_PORT}"
 echo -e "${CYAN}[dev]${RESET} Press Ctrl-C to stop both services"
 echo ""
 
-# ── Start backend ──────────────────────────────────────────────────────────
+# ── Single-instance guard for backend port ───────────────────────────────
+if lsof -nP -i ":${BACKEND_PORT}" -sTCP:LISTEN >/dev/null 2>&1; then
+    echo -e "${RED}[dev] ERROR:${RESET} port ${BACKEND_PORT} already in use." >&2
+    echo -e "${YELLOW}[dev]${RESET} Set DASHBOARD_PORT in .env or stop the other service." >&2
+    exit 1
+fi
+
+# ── Start backend in its own process group ───────────────────────────────
+set -m   # job control: each background pipeline gets its own PGID
 (
     cd "${BACKEND_DIR}"
     UVICORN_BIN=".venv/bin/uvicorn"
     if [[ ! -f "${UVICORN_BIN}" ]]; then
         UVICORN_BIN="uvicorn"
     fi
-    "${UVICORN_BIN}" main:app \
+    exec "${UVICORN_BIN}" main:app \
         --host "${DASHBOARD_HOST:-127.0.0.1}" \
         --port "${BACKEND_PORT}" \
         --reload \
-        --log-level "${DASHBOARD_LOG_LEVEL:-info}" \
-        2>&1
-) | prefix_logs "[backend]" "${GREEN}" &
+        --log-level "${DASHBOARD_LOG_LEVEL:-info}"
+) 2>&1 | prefix_logs "[backend]" "${GREEN}" &
 BACKEND_PID=$!
+BACKEND_PGID=$(ps -o pgid= -p "${BACKEND_PID}" 2>/dev/null | tr -d ' ')
+BACKEND_PGID="${BACKEND_PGID:-${BACKEND_PID}}"
 
-# ── Start frontend ─────────────────────────────────────────────────────────
-(
-    cd "${FRONTEND_DIR}"
-    PNPM_BIN="pnpm"
-    if ! command -v pnpm &>/dev/null; then
-        echo "pnpm not found. Install via: npm install -g pnpm" >&2
-        exit 1
-    fi
-    "${PNPM_BIN}" dev 2>&1
-) | prefix_logs "[frontend]" "${CYAN}" &
-FRONTEND_PID=$!
+# ── Start frontend via guarded wrapper (refuses if already running) ──────
+bash "${SCRIPT_DIR}/start-frontend.sh" --bg | prefix_logs "[frontend]" "${CYAN}"
+if [[ ! -f "${DASHBOARD_DIR}/.frontend.pgid" ]]; then
+    echo -e "${RED}[dev] ERROR:${RESET} frontend failed to start (no PGID file)." >&2
+    exit 1
+fi
+FRONTEND_PGID=$(cat "${DASHBOARD_DIR}/.frontend.pgid")
 
-# ── Wait for both ──────────────────────────────────────────────────────────
-# Wait for whichever exits first; then trigger cleanup via the EXIT trap.
-wait "${BACKEND_PID}" "${FRONTEND_PID}"
+echo ""
+echo -e "${CYAN}[dev]${RESET} Backend  PGID ${BACKEND_PGID}"
+echo -e "${CYAN}[dev]${RESET} Frontend PGID ${FRONTEND_PGID}"
+echo -e "${CYAN}[dev]${RESET} Tail frontend log: tail -f ${DASHBOARD_DIR}/.frontend.log"
+echo ""
+
+set +m
+
+# ── Wait for backend ───────────────────────────────────────────────────────
+# Frontend runs detached under its own PGID file. We watch the backend
+# (which prints to stdout via the pipe) and let the EXIT trap reap both.
+wait "${BACKEND_PID}"

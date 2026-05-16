@@ -1,0 +1,31 @@
+{
+  "_README": "These configurations exist for tooling discovery only. NEVER auto-start the frontend without explicit user approval — Next 16 + Tailwind 4 + PostCSS workers can fork-bomb (3990+ procs observed). To start the frontend, the user must say so explicitly; then use `bash dashboard/scripts/start-frontend.sh --bg` which enforces single-instance + process-group cleanup.",
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dashboard-backend",
+      "runtimeExecutable": "dashboard/backend/.venv/bin/python",
+      "runtimeArgs": [
+        "-m",
+        "uvicorn",
+        "main:app",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8788",
+        "--app-dir",
+        "dashboard/backend"
+      ],
+      "port": 8788
+    },
+    {
+      "name": "dashboard-frontend",
+      "_warning": "DO NOT auto-launch. Run `bash dashboard/scripts/start-frontend.sh --bg` instead — it enforces single-instance + reaps the postcss/swc worker group on stop.",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "dashboard/scripts/start-frontend.sh"
+      ],
+      "port": 3000
+    }
+  ]
+}

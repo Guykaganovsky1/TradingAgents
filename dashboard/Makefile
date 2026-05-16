@@ -24,7 +24,7 @@ TOKEN_FILE     := $(BACKEND_DIR)/data/.token
 -include $(DASHBOARD_DIR).env
 export
 
-.PHONY: help setup dev backend frontend test lint build \
+.PHONY: help setup dev backend frontend frontend-stop test lint build \
         docker-up docker-down clean token
 
 # ── help ─────────────────────────────────────────────────────────────────────
@@ -59,9 +59,11 @@ backend: ## Start the FastAPI backend only (uvicorn --reload)
 			--log-level "$${DASHBOARD_LOG_LEVEL:-info}"
 
 # ── frontend ─────────────────────────────────────────────────────────────────
-frontend: ## Start the Next.js frontend only (pnpm dev)
-	@echo "Starting frontend on http://localhost:3000 …"
-	@cd $(FRONTEND_DIR) && pnpm dev
+frontend: ## Start Next.js dev (single-instance guard; refuses if already running)
+	@bash $(DASHBOARD_DIR)scripts/start-frontend.sh
+
+frontend-stop: ## Stop the Next.js dev server + reap orphan postcss/swc workers
+	@bash $(DASHBOARD_DIR)scripts/stop-frontend.sh
 
 # ── test ─────────────────────────────────────────────────────────────────────
 test: ## Run backend pytest + frontend pnpm test
