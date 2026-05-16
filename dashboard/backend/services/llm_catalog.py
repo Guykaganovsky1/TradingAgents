@@ -51,6 +51,21 @@ CODEX_EXTRAS: dict[str, dict[str, list[dict[str, str]]]] = {
             {"label": "(config.toml default) - Use account's Codex model", "value": ""},
         ],
     },
+    "kimi-cli": {
+        # Kimi CLI (Moonshot AI). Coding agent like Codex CLI — uses Kimi
+        # account auth via `kimi login`. Empty value = default from
+        # ~/.kimi/config.toml. Best used as the Coding Planner agent,
+        # not as the main analyst LLM (no LangChain bind_tools support).
+        "deep": [
+            {"label": "(config.toml default) - Use account's Kimi model", "value": ""},
+            {"label": "Kimi K2 (0905 preview) - 200k ctx, strong coding", "value": "kimi-k2-0905-preview"},
+            {"label": "Kimi K2 (turbo) - Faster variant", "value": "kimi-k2-turbo-preview"},
+        ],
+        "quick": [
+            {"label": "(config.toml default) - Use account's Kimi model", "value": ""},
+            {"label": "Kimi K2 (turbo) - Faster variant", "value": "kimi-k2-turbo-preview"},
+        ],
+    },
 }
 
 

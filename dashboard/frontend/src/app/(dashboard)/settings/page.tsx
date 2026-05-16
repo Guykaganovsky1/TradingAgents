@@ -153,6 +153,7 @@ function SettingsForm({ settings }: { settings: AppSettings }) {
                   "anthropic",
                   "google",
                   "moonshot",
+                  "kimi-cli",
                   "codex",
                   "codex-cli",
                   "xai",
