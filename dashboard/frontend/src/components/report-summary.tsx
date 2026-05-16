@@ -60,18 +60,25 @@ const SECTIONS: SectionDef[] = [
     accent: "emerald",
   },
   {
-    key: "trader_investment_plan",
+    key: "trader_investment_decision",
     label: "Trader's Plan",
     agent: "Trader",
     Icon: Wallet,
     accent: "violet",
   },
   {
-    key: "investment_plan",
-    label: "Investment Plan",
-    agent: "Research Manager",
+    key: "investment_debate_state",
+    label: "Investment Debate",
+    agent: "Bull vs Bear Researchers",
     Icon: Brain,
     accent: "indigo",
+  },
+  {
+    key: "risk_debate_state",
+    label: "Risk Debate",
+    agent: "Risk Management Team",
+    Icon: Brain,
+    accent: "amber",
   },
   {
     key: "market_report",
@@ -88,7 +95,7 @@ const SECTIONS: SectionDef[] = [
     accent: "amber",
   },
   {
-    key: "social_report",
+    key: "sentiment_report",
     label: "Social Sentiment",
     agent: "Social Analyst",
     Icon: MessageCircle,
@@ -153,12 +160,20 @@ export function ReportSummary({ runId, availableSections }: ReportSummaryProps) 
         },
         (e: Error) => {
           if (cancelled) return;
-          const is404 = /404|not.?found/i.test(e.message);
+          // Treat as "missing" (silently hide) when:
+          //  - 404 Not Found
+          //  - 400 Invalid section (backend allow-list mismatch — possible
+          //    if upstream tradingagents renamed something)
+          //  - "no file" / "empty" hints
+          // Anything else (5xx, network, parse) surfaces as an error.
+          const msg = e.message ?? "";
+          const isMissing =
+            /404|not.?found|invalid section|no such|empty/i.test(msg);
           setStates((prev) => ({
             ...prev,
-            [s.key]: is404
+            [s.key]: isMissing
               ? { status: "missing" }
-              : { status: "error", message: e.message },
+              : { status: "error", message: msg },
           }));
         }
       );

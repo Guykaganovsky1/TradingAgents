@@ -9,10 +9,11 @@ import { Loader2 } from "lucide-react";
 const SECTIONS: { key: ReportSection; label: string }[] = [
   { key: "market_report", label: t.history.report.market },
   { key: "news_report", label: t.history.report.news },
-  { key: "social_report", label: t.history.report.social },
+  { key: "sentiment_report", label: t.history.report.sentiment },
   { key: "fundamentals_report", label: t.history.report.fundamentals },
-  { key: "investment_plan", label: t.history.report.investment_plan },
-  { key: "trader_investment_plan", label: t.history.report.trader_investment_plan },
+  { key: "investment_debate_state", label: t.history.report.investment_debate_state },
+  { key: "trader_investment_decision", label: t.history.report.trader_investment_decision },
+  { key: "risk_debate_state", label: t.history.report.risk_debate_state },
   { key: "final_trade_decision", label: t.history.report.final_trade_decision },
 ];
 
