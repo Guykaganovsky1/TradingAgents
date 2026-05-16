@@ -6,21 +6,23 @@ __pycache__/
 # C extensions
 *.so
 
-# Distribution / packaging
+# Python distribution / packaging — scoped to repo root only so we don't
+# accidentally ignore JS/TS lib/ directories (e.g. dashboard/frontend/src/lib).
+# Leading slash anchors each pattern to the repo root.
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
+/build/
+/develop-eggs/
+/dist/
+/downloads/
+/eggs/
+/.eggs/
+/lib/
+/lib64/
+/parts/
+/sdist/
+/var/
+/wheels/
+/share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
