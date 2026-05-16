@@ -253,6 +253,21 @@ ta = TradingAgentsGraph(config=config)
 _, decision = ta.propagate("NVDA", "2026-01-15")
 ```
 
+## Web Dashboard
+
+A glassmorphism-styled web dashboard wrapping the TradingAgents engine — watchlist management,
+on-demand and scheduled analyses, live agent streaming, history browsing, and settings.
+
+See [dashboard/README.md](dashboard/README.md) for setup. Quick start:
+
+```bash
+cd dashboard && make setup && make dev
+```
+
+Then open http://localhost:3000.
+
+---
+
 ## Contributing
 
 We welcome contributions from the community! Whether it's fixing a bug, improving documentation, or suggesting a new feature, your input helps make this project better. If you are interested in this line of research, please consider joining our open-source financial AI research community [Tauric Research](https://tauric.ai/).

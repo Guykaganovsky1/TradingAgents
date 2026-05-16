@@ -1,0 +1,83 @@
+version: '3.8'
+
+# TradingAgents Dashboard — Docker Compose
+# -----------------------------------------
+# Starts the FastAPI backend and the Next.js frontend as
+# separate containers on a shared bridge network.
+#
+# Usage:
+#   docker-compose up --build          # build & start both services
+#   docker-compose up --build backend  # backend only
+#   docker-compose down                # stop & remove containers
+#
+# The backend Dockerfile lives at ./backend/Dockerfile.
+# The frontend Dockerfile lives at ./frontend/Dockerfile.dev.
+# Neither file is authored here — see the respective service
+# directories for build instructions.
+
+networks:
+  dashboard:
+    driver: bridge
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tradingagents-backend
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    volumes:
+      # Persist the SQLite database and bearer-token file
+      - ./backend/data:/app/data
+      # Mount existing TradingAgents results so the backend can
+      # read historical analyses and write new ones
+      - ../results:/results:rw
+    environment:
+      - DASHBOARD_API_TOKEN=${DASHBOARD_API_TOKEN:-}
+      - DASHBOARD_SECRET_KEY=${DASHBOARD_SECRET_KEY:-}
+      - DASHBOARD_CORS_ORIGINS=${DASHBOARD_CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      - DASHBOARD_HOST=0.0.0.0
+      - DASHBOARD_PORT=8787
+      - DASHBOARD_DB_PATH=/app/data/dashboard.db
+      - DASHBOARD_LOG_LEVEL=${DASHBOARD_LOG_LEVEL:-INFO}
+      - TRADINGAGENTS_RESULTS_DIR=/results
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY:-}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8787/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - dashboard
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: tradingagents-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Server-side only — proxied to backend inside Docker network
+      - BACKEND_URL=http://backend:8787
+      - DASHBOARD_API_TOKEN=${DASHBOARD_API_TOKEN:-}
+      - NEXT_PUBLIC_APP_NAME=${NEXT_PUBLIC_APP_NAME:-TradingAgents}
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - dashboard
