@@ -85,40 +85,59 @@ if ! command -v pnpm >/dev/null 2>&1; then
 fi
 
 # ── Launch in its own process group ───────────────────────────────────────
+# We use a tiny Python wrapper to call os.setsid() before execvp — this
+# works portably on macOS and Linux regardless of whether the parent shell
+# has job control enabled (set -m fails in non-interactive bash on macOS,
+# so we don't rely on it). The child becomes its own session leader and
+# thus its own process group leader, so PGID == child's PID. That lets
+# `kill -- -<PGID>` reap the entire next/postcss/swc worker tree.
+
+if ! command -v python3 >/dev/null 2>&1; then
+    echo -e "${RED}[frontend]${RESET} python3 is required to spawn with a fresh session." >&2
+    exit 1
+fi
+
+SETSID_WRAPPER="${SCRIPT_DIR}/_setsid_spawn.py"
+if [[ ! -f "${SETSID_WRAPPER}" ]]; then
+    cat > "${SETSID_WRAPPER}" <<'PYEOF'
+#!/usr/bin/env python3
+"""Tiny shim: create a new session (os.setsid) then exec the given command.
+The new session means the spawned process becomes its own process-group
+leader. PGID == PID, so `kill -- -<PID>` reaps the whole tree."""
+import os
+import sys
+if len(sys.argv) < 2:
+    sys.exit("usage: _setsid_spawn.py <cmd> [args...]")
+os.setsid()
+os.execvp(sys.argv[1], sys.argv[1:])
+PYEOF
+    chmod +x "${SETSID_WRAPPER}"
+fi
+
 echo -e "${CYAN}[frontend]${RESET} Starting Next.js dev server on :${FRONTEND_PORT}"
 
 cd "${FRONTEND_DIR}"
 
 if [[ "${1:-}" == "--bg" ]]; then
-    # Background mode: detach, capture PGID, return immediately.
-    # `setsid` gives the child its own session+PGID (Linux). macOS lacks
-    # `setsid`, so we use `nohup` + `&` and then read PGID via ps.
-    if command -v setsid >/dev/null 2>&1; then
-        setsid pnpm dev >"${LOG_FILE}" 2>&1 &
-        child_pid=$!
-        # Under setsid, the child becomes its own session leader; PGID == PID.
-        echo "${child_pid}" > "${PGID_FILE}"
-    else
-        # macOS path: shell job control puts pipeline in its own PGID.
-        set -m
-        nohup pnpm dev >"${LOG_FILE}" 2>&1 &
-        child_pid=$!
-        set +m
-        # On macOS the spawned background job inherits a fresh PGID == its PID
-        # when job control is enabled.
-        pgid=$(ps -o pgid= -p "${child_pid}" 2>/dev/null | tr -d ' ')
-        echo "${pgid:-${child_pid}}" > "${PGID_FILE}"
-    fi
-    echo -e "${GREEN}[frontend]${RESET} Started (PGID $(cat "${PGID_FILE}")). Logs: ${LOG_FILE}"
+    # Background mode: detach via setsid wrapper, capture PID (== PGID).
+    nohup python3 "${SETSID_WRAPPER}" pnpm dev >"${LOG_FILE}" 2>&1 &
+    child_pid=$!
+    # Give the child a moment to call setsid().
+    sleep 0.2
+    pgid=$(ps -o pgid= -p "${child_pid}" 2>/dev/null | tr -d ' ' || true)
+    pgid="${pgid:-${child_pid}}"
+    echo "${pgid}" > "${PGID_FILE}"
+    disown "${child_pid}" 2>/dev/null || true
+    echo -e "${GREEN}[frontend]${RESET} Started (PID ${child_pid}, PGID ${pgid}). Logs: ${LOG_FILE}"
     echo -e "${CYAN}[frontend]${RESET} Stop: bash scripts/stop-frontend.sh"
     exit 0
 fi
 
-# Foreground mode: trap and reap the whole group on exit.
-set -m   # enable job control so the child gets its own PGID
-pnpm dev &
+# Foreground mode: launch via wrapper, trap and reap the whole group.
+python3 "${SETSID_WRAPPER}" pnpm dev &
 child_pid=$!
-pgid=$(ps -o pgid= -p "${child_pid}" 2>/dev/null | tr -d ' ')
+sleep 0.2
+pgid=$(ps -o pgid= -p "${child_pid}" 2>/dev/null | tr -d ' ' || true)
 pgid="${pgid:-${child_pid}}"
 echo "${pgid}" > "${PGID_FILE}"
 

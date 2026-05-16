@@ -21,9 +21,11 @@
     {
       "name": "dashboard-frontend",
       "_warning": "DO NOT auto-launch. Run `bash dashboard/scripts/start-frontend.sh --bg` instead — it enforces single-instance + reaps the postcss/swc worker group on stop.",
-      "runtimeExecutable": "bash",
+      "runtimeExecutable": "pnpm",
       "runtimeArgs": [
-        "dashboard/scripts/start-frontend.sh"
+        "--dir",
+        "dashboard/frontend",
+        "dev"
       ],
       "port": 3000
     }

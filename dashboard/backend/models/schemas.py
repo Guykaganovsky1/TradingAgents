@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
@@ -179,7 +179,7 @@ class ScheduleDetail(ScheduleSummary):
 class RunCreate(BaseModel):
     ticker: str
     analysis_date: str = Field(
-        default_factory=lambda: datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        default_factory=lambda: datetime.now(UTC).strftime("%Y-%m-%d"),
         pattern=r"^\d{4}-\d{2}-\d{2}$",
     )
     analysts: list[AnalystType] = Field(

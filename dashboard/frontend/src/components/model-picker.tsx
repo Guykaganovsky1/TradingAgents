@@ -3,7 +3,7 @@ import useSWR from "swr";
 import { getLlmOptions } from "@/lib/api";
 import { t } from "@/lib/i18n/en";
 import { cn } from "@/lib/utils";
-import type { LlmOptions } from "@/lib/types";
+import type { LlmOptions, LlmModelOption } from "@/lib/types";
 import { Loader2 } from "lucide-react";
 
 interface ModelPickerProps {
@@ -24,10 +24,17 @@ const selectClass =
 function getModelsForProvider(
   options: LlmOptions | undefined,
   provider: string
-): { id: string; label: string }[] {
+): LlmModelOption[] {
   if (!options?.models[provider]) return [];
-  // Flatten all categories into a single list
-  return Object.values(options.models[provider]).flat();
+  // Flatten all categories ("deep" / "quick" / etc.) into a single list.
+  // De-duplicate by value since a model may appear in multiple categories.
+  const flat = Object.values(options.models[provider]).flat();
+  const seen = new Set<string>();
+  return flat.filter((m) => {
+    if (!m?.value || seen.has(m.value)) return false;
+    seen.add(m.value);
+    return true;
+  });
 }
 
 export function ModelPicker({
@@ -48,7 +55,7 @@ export function ModelPicker({
   function handleProviderChange(pid: string) {
     onProviderChange(pid);
     const providerModels = getModelsForProvider(data, pid);
-    if (providerModels[0]) onModelChange(providerModels[0].id);
+    if (providerModels[0]) onModelChange(providerModels[0].value);
   }
 
   if (isLoading) {
@@ -94,7 +101,7 @@ export function ModelPicker({
           )}
         >
           {models.map((m) => (
-            <option key={m.id} value={m.id}>
+            <option key={m.value} value={m.value}>
               {m.label}
             </option>
           ))}

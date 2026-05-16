@@ -40,6 +40,10 @@ function SettingsForm({ settings }: { settings: AppSettings }) {
   const [llmProvider, setLlmProvider] = useState(settings.llm_provider ?? "ollama");
   const [outputLanguage, setOutputLanguage] = useState(settings.output_language ?? "English");
   const [maxDebateRounds, setMaxDebateRounds] = useState(settings.max_debate_rounds ?? "1");
+  const [codexPlannerEnabled, setCodexPlannerEnabled] = useState(
+    settings.codex_planner_enabled ?? false,
+  );
+  const [autoSave, setAutoSave] = useState(settings.auto_save ?? true);
 
   const [secrets, setSecrets] = useState({
     openai_api_key: "",
@@ -67,6 +71,8 @@ function SettingsForm({ settings }: { settings: AppSettings }) {
         ["quick_think_llm", quickThinkLlm],
         ["output_language", outputLanguage],
         ["max_debate_rounds", maxDebateRounds],
+        ["codex_planner_enabled", String(codexPlannerEnabled)],
+        ["auto_save", String(autoSave)],
       ];
 
       // Only send secret fields if the user typed a value
@@ -138,7 +144,16 @@ function SettingsForm({ settings }: { settings: AppSettings }) {
                 onChange={(e) => setLlmProvider(e.target.value)}
                 className={selectClass}
               >
-                {["ollama", "openai", "anthropic", "gemini"].map((p) => (
+                {[
+                  "ollama",
+                  "openai",
+                  "anthropic",
+                  "google",
+                  "codex",
+                  "codex-cli",
+                  "xai",
+                  "deepseek",
+                ].map((p) => (
                   <option key={p} value={p}>
                     {p.charAt(0).toUpperCase() + p.slice(1)}
                   </option>
@@ -262,6 +277,23 @@ function SettingsForm({ settings }: { settings: AppSettings }) {
                 ))}
               </select>
             </div>
+
+            {/* Auto-save toggle */}
+            <ToggleRow
+              label="Auto-save results"
+              description="Write each run's full markdown reports to ./results/"
+              value={autoSave}
+              onChange={setAutoSave}
+            />
+
+            {/* Codex Coding Planner — wired to backend `codex_planner_enabled` */}
+            <ToggleRow
+              label="Codex Coding Planner"
+              description="Adds a code-generation agent to the run pipeline. Uses Codex API or Codex CLI (configure provider+model in LLM Configuration above)."
+              value={codexPlannerEnabled}
+              onChange={setCodexPlannerEnabled}
+              accent="indigo"
+            />
           </div>
         </GlassCard>
 
@@ -330,6 +362,55 @@ function SecretField({
           <CheckCircle2 size={11} /> {t.settings.configured}
         </p>
       )}
+    </div>
+  );
+}
+
+/**
+ * Glass-styled toggle row used in the Behaviour card.
+ * Uses an accessible <button role="switch" aria-checked> rather than the
+ * native checkbox so the visual matches the rest of the design system.
+ */
+function ToggleRow({
+  label,
+  description,
+  value,
+  onChange,
+  accent = "default",
+}: {
+  label: string;
+  description: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+  accent?: "default" | "indigo";
+}) {
+  const onBg = accent === "indigo" ? "bg-indigo-500" : "bg-emerald-500";
+  return (
+    <div className="flex items-center justify-between gap-4 py-3 border-b border-white/[0.03]">
+      <div className="flex-1 min-w-0">
+        <p className="text-sm text-slate-200">{label}</p>
+        <p className="text-[11px] text-slate-500 mt-0.5">{description}</p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={value}
+        aria-label={label}
+        onClick={() => onChange(!value)}
+        className={cn(
+          "relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950",
+          value ? onBg : "bg-white/[0.08]",
+        )}
+      >
+        <span
+          aria-hidden="true"
+          className={cn(
+            "inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform",
+            value ? "translate-x-6" : "translate-x-1",
+          )}
+        />
+      </button>
     </div>
   );
 }

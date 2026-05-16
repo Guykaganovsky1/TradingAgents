@@ -54,7 +54,8 @@ async def _build_run_config(session: AsyncSession) -> dict:
     setting_map = {s.key: s for s in all_settings}
 
     plain_keys = ["llm_provider", "deep_think_llm", "quick_think_llm", "backend_url",
-                  "output_language", "max_debate_rounds", "max_risk_discuss_rounds"]
+                  "output_language", "max_debate_rounds", "max_risk_discuss_rounds",
+                  "codex_provider", "codex_model", "codex_backend_url"]
     for key in plain_keys:
         if key in setting_map and setting_map[key].value_plain is not None:
             val = setting_map[key].value_plain
@@ -62,6 +63,15 @@ async def _build_run_config(session: AsyncSession) -> dict:
                 with contextlib.suppress(ValueError):
                     val = int(val)
             config[key] = val
+
+    # Codex coding planner: boolean toggle wired to the upstream
+    # tradingagents DEFAULT_CONFIG["use_codex_coding_planner"] key.
+    # When enabled, TradingAgentsGraph adds a Coding Planner agent that
+    # uses the Codex API or Codex CLI to generate executable strategy code.
+    if "codex_planner_enabled" in setting_map and setting_map["codex_planner_enabled"].value_plain is not None:
+        config["use_codex_coding_planner"] = (
+            setting_map["codex_planner_enabled"].value_plain.lower() == "true"
+        )
 
     # Decrypt and inject API keys into environment (TradingAgentsGraph reads from env)
     key_env_map = {
