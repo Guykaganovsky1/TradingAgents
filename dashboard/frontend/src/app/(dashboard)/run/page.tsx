@@ -284,10 +284,21 @@ function RunPageInner() {
               <p className="text-[10px] uppercase tracking-[1px] text-white/30">
                 {t.run.agentPipeline}
               </p>
-              {runId && (
-                <ConnectionIndicator status={stream.status} />
-              )}
+              {runId && <ConnectionIndicator status={stream.status} />}
             </div>
+
+            {/* Progress bar — only meaningful once a run is in flight.
+                Counts agents in {done, error} as "finished" against the total.
+                Shows a finish-state message when complete (matches the 1.5s
+                pause the auto-nav effect uses before pushing to the report). */}
+            {runId && <RunProgress
+              agents={stream.agents}
+              isComplete={stream.isComplete}
+              wsStatus={stream.status}
+              decision={stream.decision}
+              hasError={Boolean(stream.errorMessage)}
+            />}
+
             <AgentPipeline agents={stream.agents} />
           </GlassCard>
 
@@ -340,5 +351,112 @@ export default function RunPage() {
     <Suspense fallback={<div className="text-xs text-slate-500 py-8 text-center">{t.loading}</div>}>
       <RunPageInner />
     </Suspense>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// RunProgress
+// ---------------------------------------------------------------------------
+/**
+ * Inline progress bar + status text shown above the AgentPipeline list.
+ *
+ * Counts agents in 'done' or 'error' status against the total to derive a
+ * 0-100 percentage. Renders the percentage as a filled bar and a one-line
+ * caption (e.g. "3 of 7 agents complete · Trader running") that adapts to
+ * the run state:
+ *  - running             → indigo bar + N of M agents complete · <current>
+ *  - complete            → emerald bar + "✓ Analysis complete — opening report…"
+ *  - error               → red bar    + "Analysis failed — see details below"
+ *  - connecting/no agents → indeterminate animated stripe
+ *
+ * Why this lives next to the page instead of in its own file: the math
+ * is small + tied to the page's stream state. Pulling it into the
+ * components directory adds an import path without making the call site
+ * any clearer.
+ */
+function RunProgress({
+  agents,
+  isComplete,
+  wsStatus,
+  decision,
+  hasError,
+}: {
+  agents: { name: string; status: "pending" | "running" | "done" | "error" }[];
+  isComplete: boolean;
+  wsStatus: "connecting" | "connected" | "reconnecting" | "disconnected";
+  decision: string | null;
+  hasError: boolean;
+}) {
+  const total = agents.length;
+  const finished = agents.filter(
+    (a) => a.status === "done" || a.status === "error",
+  ).length;
+  const running = agents.find((a) => a.status === "running");
+
+  // While we haven't seen any agents yet, animate a slow stripe rather
+  // than render a static 0% bar — it telegraphs "the system is working,
+  // just hasn't fanned out yet".
+  const indeterminate = total === 0 && !isComplete && !hasError;
+
+  // Percentage: when complete we always show 100, regardless of agent
+  // tracking (some runs short-circuit and never enter the per-agent loop).
+  const pct = isComplete
+    ? 100
+    : total > 0
+      ? Math.round((finished / total) * 100)
+      : 0;
+
+  // Pick bar color + caption text per state, conclusion-first.
+  let barClass = "bg-indigo-500";
+  let caption: string;
+  if (hasError) {
+    barClass = "bg-red-500";
+    caption = "Analysis failed — see details below";
+  } else if (isComplete) {
+    barClass = "bg-emerald-500";
+    caption = decision
+      ? `✓ Analysis complete (${decision.toUpperCase()}) — opening report…`
+      : "✓ Analysis complete — opening report…";
+  } else if (indeterminate) {
+    caption =
+      wsStatus === "connecting" || wsStatus === "reconnecting"
+        ? "Connecting to the run…"
+        : "Waiting for the first agent to start…";
+  } else if (running) {
+    caption = `${finished} of ${total} agents complete · ${running.name} running`;
+  } else if (finished === total && total > 0) {
+    caption = "Finalising decision…";
+  } else {
+    caption = `${finished} of ${total} agents complete`;
+  }
+
+  return (
+    <div className="mb-3" role="status" aria-live="polite" aria-atomic="true">
+      <div className="h-1.5 w-full rounded-full overflow-hidden bg-white/[0.06]">
+        {indeterminate ? (
+          <div
+            className="h-full w-1/3 rounded-full bg-indigo-500/60 animate-pulse"
+            aria-label="Connecting…"
+          />
+        ) : (
+          <div
+            className={`h-full rounded-full transition-[width] duration-500 ease-out ${barClass}`}
+            style={{ width: `${pct}%` }}
+            aria-label={`Progress ${pct}%`}
+          />
+        )}
+      </div>
+      <p
+        className={`mt-1.5 text-[11px] ${
+          hasError
+            ? "text-red-400"
+            : isComplete
+              ? "text-emerald-300"
+              : "text-slate-400"
+        }`}
+      >
+        {caption}
+      </p>
+    </div>
   );
 }
