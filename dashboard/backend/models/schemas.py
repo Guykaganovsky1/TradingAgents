@@ -58,6 +58,12 @@ class SettingsKey(StrEnum):
     ollama_base_url = "ollama_base_url"
     auto_save = "auto_save"
     codex_planner_enabled = "codex_planner_enabled"
+    # Scanner settings
+    reddit_client_id = "reddit_client_id"
+    reddit_client_secret = "reddit_client_secret"
+    scanner_default_universes = "scanner_default_universes"
+    scanner_min_price_usd = "scanner_min_price_usd"
+    scanner_min_volume_usd = "scanner_min_volume_usd"
 
 
 # Sensitive keys whose values are Fernet-encrypted
@@ -67,6 +73,7 @@ SENSITIVE_KEYS: set[str] = {
     SettingsKey.google_api_key,
     SettingsKey.moonshot_api_key,
     SettingsKey.alpha_vantage_api_key,
+    SettingsKey.reddit_client_secret,
 }
 
 # ---------------------------------------------------------------------------
@@ -335,6 +342,106 @@ class HealthResponse(BaseModel):
     status: str
     version: str
     uptime_seconds: float
+
+
+# ---------------------------------------------------------------------------
+# Scanner
+# ---------------------------------------------------------------------------
+
+SCANNER_TICKER_REGEX = re.compile(r"^[A-Z0-9.\-]{1,15}$")
+
+VALID_UNIVERSES: set[str] = {"watchlist", "sp500", "nasdaq100", "crypto"}
+
+
+class ScanCreate(BaseModel):
+    universes: list[str] = Field(..., min_length=1, max_length=4)
+    top_n: int = Field(default=5, ge=1, le=20)
+    min_price: float | None = Field(default=None, ge=0)
+    min_volume_usd: float | None = Field(default=None, ge=0)
+
+    @field_validator("universes")
+    @classmethod
+    def check_universes(cls, v: list[str]) -> list[str]:
+        for u in v:
+            if u not in VALID_UNIVERSES:
+                raise ValueError(f"Invalid universe: {u!r}. Valid: {sorted(VALID_UNIVERSES)}")
+        return list(dict.fromkeys(v))  # deduplicate preserving order
+
+
+class FactorDetail(BaseModel):
+    score: float | None = None
+    weight: float
+    signals: list[str] = []
+
+
+class ScannerResult(BaseModel):
+    symbol: str
+    name: str
+    asset_class: str  # "stock" | "crypto"
+    composite_score: float
+    rank: int
+    factors: dict[str, FactorDetail]
+    price: float | None = None
+    price_change_24h_pct: float | None = None
+    volume_usd_24h: float | None = None
+    suggested_analysts: list[str]
+    run_url: str
+
+
+class ScanSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    scan_id: str
+    universes: list[str]
+    top_n: int
+    status: str
+    progress_pct: int
+    factor_progress: dict[str, str] | None = None
+    results: list[ScannerResult] | None = None
+    error_message: str | None = None
+    started_at: datetime
+    completed_at: datetime | None = None
+    universe_size: int
+    ws_url: str = ""
+
+    @field_validator("universes", mode="before")
+    @classmethod
+    def parse_universes(cls, v):
+        if isinstance(v, str):
+            import json  # noqa: PLC0415
+            return json.loads(v)
+        return v
+
+    @field_validator("factor_progress", mode="before")
+    @classmethod
+    def parse_factor_progress(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, str):
+            import json  # noqa: PLC0415
+            return json.loads(v)
+        return v
+
+    @field_validator("results", mode="before")
+    @classmethod
+    def parse_results(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, str):
+            import json  # noqa: PLC0415
+            raw = json.loads(v)
+            return [ScannerResult(**r) for r in raw]
+        return v
+
+    def model_post_init(self, __context) -> None:  # type: ignore[override]
+        object.__setattr__(self, "ws_url", f"/ws/scans/{self.scan_id}")
+
+
+class ScanListResponse(BaseModel):
+    items: list[ScanSummary]
+    total: int
+    limit: int
+    offset: int
 
 
 # Rebuild forward refs

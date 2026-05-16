@@ -105,6 +105,7 @@ app.add_exception_handler(Exception, generic_error_handler)
 # ---------------------------------------------------------------------------
 from api.health import router as health_router  # noqa: E402
 from api.runs import router as runs_router  # noqa: E402
+from api.scans import router as scans_router  # noqa: E402
 from api.schedules import router as schedules_router  # noqa: E402
 from api.settings import router as settings_router  # noqa: E402
 from api.stats import router as stats_router  # noqa: E402
@@ -116,9 +117,12 @@ app.include_router(schedules_router)
 app.include_router(runs_router)
 app.include_router(settings_router)
 app.include_router(stats_router)
+app.include_router(scans_router)
 
 # WebSocket route is on the runs router but mounted at /ws/runs/{run_id}
 # Re-register it at the app level for the /ws prefix
 from api.runs import ws_run_stream  # noqa: E402
+from api.scans import ws_scan  # noqa: E402
 
 app.add_api_websocket_route("/ws/runs/{run_id}", ws_run_stream)
+app.add_api_websocket_route("/ws/scans/{scan_id}", ws_scan)

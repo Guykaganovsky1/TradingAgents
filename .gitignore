@@ -230,3 +230,6 @@ dashboard/.env
 # Frontend dev-server runtime state
 dashboard/.frontend.pgid
 dashboard/.frontend.log
+
+# Scanner universe + sentiment caches (auto-generated at runtime)
+dashboard/backend/data/scanner_cache/

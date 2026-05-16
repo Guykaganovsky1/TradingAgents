@@ -28,27 +28,27 @@ export function Sidebar() {
         </span>
       </div>
 
-      {/* Section: Main */}
+      {/* Section: Main — Overview, Run Analysis, Scan */}
       <p className="px-2 mb-1 text-[9px] uppercase tracking-[1.5px] text-white/20">
         Main
       </p>
-      {NAV_ITEMS.slice(0, 2).map((item) => (
+      {NAV_ITEMS.slice(0, 3).map((item) => (
         <NavLink key={item.href} item={item} pathname={pathname} />
       ))}
 
-      {/* Section: Portfolio */}
+      {/* Section: Portfolio — Watchlist, History */}
       <p className="px-2 mb-1 mt-3 text-[9px] uppercase tracking-[1.5px] text-white/20">
         Portfolio
       </p>
-      {NAV_ITEMS.slice(2, 4).map((item) => (
+      {NAV_ITEMS.slice(3, 5).map((item) => (
         <NavLink key={item.href} item={item} pathname={pathname} />
       ))}
 
-      {/* Section: System */}
+      {/* Section: System — Settings */}
       <p className="px-2 mb-1 mt-3 text-[9px] uppercase tracking-[1.5px] text-white/20">
         System
       </p>
-      {NAV_ITEMS.slice(4).map((item) => (
+      {NAV_ITEMS.slice(5).map((item) => (
         <NavLink key={item.href} item={item} pathname={pathname} />
       ))}
     </aside>
