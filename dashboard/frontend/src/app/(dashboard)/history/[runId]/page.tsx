@@ -6,6 +6,8 @@ import { GlassCard } from "@/components/glass-card";
 import { DecisionCard } from "@/components/decision-card";
 import { ReportTabs } from "@/components/report-tabs";
 import { ReportSummary } from "@/components/report-summary";
+import { RunProgress } from "@/components/run-progress";
+import { useRunStream } from "@/hooks/use-run-stream";
 import { getRun } from "@/lib/api";
 import { t } from "@/lib/i18n/en";
 import { formatDateTime, formatTokens } from "@/lib/format";
@@ -95,14 +97,10 @@ function RunDetail({ run }: { run: RunDetail }) {
         />
       )}
 
-      {/* Run in progress */}
+      {/* Run in progress — live progress bar via WS so the user sees agents
+          ticking off in real time instead of staring at a static spinner. */}
       {run.status === "running" && (
-        <GlassCard variant="accent">
-          <div className="flex items-center gap-2 text-xs text-indigo-300">
-            <Loader2 size={13} className="animate-spin" />
-            This analysis is still running. Results will appear when complete.
-          </div>
-        </GlassCard>
+        <RunningProgressCard runId={run.run_id ?? run.id} />
       )}
 
       {/* Error */}
@@ -197,5 +195,31 @@ function RunReportsView({ runId }: { runId: string }) {
         </GlassCard>
       )}
     </div>
+  );
+}
+
+/**
+ * Running-state card for the History detail page. Subscribes to the run's
+ * WebSocket so the progress bar (agent count, current agent, completion %)
+ * stays live while the user reads stats above. When the WS reports
+ * complete/error, the next /api/runs/{id} poll updates parent state and
+ * this card unmounts in favour of the report briefing.
+ */
+function RunningProgressCard({ runId }: { runId: string }) {
+  const stream = useRunStream(runId);
+  return (
+    <GlassCard variant="accent">
+      <div className="flex items-center gap-2 text-xs text-indigo-300 mb-3">
+        <Loader2 size={13} className="animate-spin" />
+        This analysis is still running. Live progress below.
+      </div>
+      <RunProgress
+        agents={stream.agents}
+        isComplete={stream.isComplete}
+        wsStatus={stream.status}
+        decision={stream.decision}
+        hasError={Boolean(stream.errorMessage)}
+      />
+    </GlassCard>
   );
 }

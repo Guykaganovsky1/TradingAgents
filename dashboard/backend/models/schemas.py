@@ -42,6 +42,55 @@ class RunStatus(StrEnum):
     error = "error"
 
 
+# ---------------------------------------------------------------------------
+# Decision normalization
+# ---------------------------------------------------------------------------
+# TradingAgents' SignalProcessor emits a 5-tier rating:
+#   Buy / Overweight / Hold / Underweight / Sell
+# The dashboard signal pill is 3-tier (BUY / HOLD / SELL). Map at the
+# serialization layer so the DB keeps the agent's verbatim text but every
+# API response surfaces a frontend-friendly canonical value.
+#
+# Add any new aliases the model invents here. Unknown values pass through
+# untouched so SignalBadge falls back to the neutral '—' chip rather than
+# masquerading as a real decision.
+_DECISION_ALIASES: dict[str, str] = {
+    "buy": "BUY",
+    "overweight": "BUY",
+    "long": "BUY",
+    "bullish": "BUY",
+    "strong buy": "BUY",
+    "accumulate": "BUY",
+    "add": "BUY",
+    "hold": "HOLD",
+    "neutral": "HOLD",
+    "market weight": "HOLD",
+    "maintain": "HOLD",
+    "wait": "HOLD",
+    "sell": "SELL",
+    "underweight": "SELL",
+    "short": "SELL",
+    "bearish": "SELL",
+    "strong sell": "SELL",
+    "reduce": "SELL",
+    "trim": "SELL",
+    "exit": "SELL",
+}
+
+
+def normalize_decision(raw: str | None) -> str | None:
+    """Map agent decision phrasings to BUY / HOLD / SELL.
+
+    Returns None when raw is None/empty. Returns the original (trimmed) string
+    when it doesn't match any known alias — keeps the audit trail honest and
+    lets the frontend SignalBadge fall through to the neutral placeholder.
+    """
+    if not raw:
+        return None
+    key = raw.strip().lower()
+    return _DECISION_ALIASES.get(key, raw.strip())
+
+
 class SettingsKey(StrEnum):
     llm_provider = "llm_provider"
     deep_think_llm = "deep_think_llm"
