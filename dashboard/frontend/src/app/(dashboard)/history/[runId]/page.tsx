@@ -1,14 +1,16 @@
 "use client";
-import { use, useState, useEffect } from "react";
+import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { GlassCard } from "@/components/glass-card";
 import { DecisionCard } from "@/components/decision-card";
 import { ReportTabs } from "@/components/report-tabs";
+import { ReportSummary } from "@/components/report-summary";
 import { getRun } from "@/lib/api";
 import { t } from "@/lib/i18n/en";
 import { formatDateTime, formatTokens } from "@/lib/format";
 import type { RunDetail, Signal } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 type PageState =
   | { status: "loading" }
@@ -133,15 +135,69 @@ function RunDetail({ run }: { run: RunDetail }) {
         ))}
       </div>
 
-      {/* Report tabs */}
+      {/* Full briefing — every analyst's report rendered inline as one
+          easy-to-scan document. The Final Decision pins at top so the
+          conclusion comes first. Each section is a markdown-rendered card.
+          Backed by the same /api/runs/{id}/report/{section} endpoints
+          the tabs use, but fetched in parallel and shown all at once. */}
       {run.status === "complete" && (
-        <GlassCard>
-          <p className="text-[10px] uppercase tracking-[1px] text-white/30 mb-3">
-            Analysis Reports
-          </p>
-          <ReportTabs runId={run.run_id} />
-        </GlassCard>
+        <RunReportsView runId={run.run_id} />
       )}
     </>
+  );
+}
+
+/**
+ * Toggle between the new "Summary" (all sections inline) and the legacy
+ * tabbed view. Summary is the default — that's what the user asked for.
+ */
+function RunReportsView({ runId }: { runId: string }) {
+  const [view, setView] = useState<"summary" | "tabs">("summary");
+
+  const tabClass = (active: boolean) =>
+    cn(
+      "rounded-md border px-3 py-1 text-[11px] font-medium transition-colors",
+      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400",
+      active
+        ? "border-indigo-400/30 bg-indigo-500/[0.12] text-indigo-200"
+        : "border-transparent text-slate-500 hover:text-slate-300"
+    );
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] uppercase tracking-[1px] text-white/30">
+          Analyst Briefing
+        </p>
+        <div className="flex gap-1" role="tablist" aria-label="View mode">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "summary"}
+            onClick={() => setView("summary")}
+            className={tabClass(view === "summary")}
+          >
+            Summary
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "tabs"}
+            onClick={() => setView("tabs")}
+            className={tabClass(view === "tabs")}
+          >
+            Tabs
+          </button>
+        </div>
+      </div>
+
+      {view === "summary" ? (
+        <ReportSummary runId={runId} />
+      ) : (
+        <GlassCard>
+          <ReportTabs runId={runId} />
+        </GlassCard>
+      )}
+    </div>
   );
 }
