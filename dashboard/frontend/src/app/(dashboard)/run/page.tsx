@@ -1,21 +1,21 @@
 "use client";
-import { useState, useCallback, Suspense } from "react";
+import { useState, useCallback, Suspense, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { GlassCard } from "@/components/glass-card";
 import { TickerInput } from "@/components/ticker-input";
 import { AnalystToggleGroup } from "@/components/analyst-toggle-group";
-import { ModelPicker } from "@/components/model-picker";
 import { AgentPipeline } from "@/components/agent-pipeline";
 import { StreamOutput } from "@/components/stream-output";
 import { ConnectionIndicator } from "@/components/connection-indicator";
 import { DecisionCard } from "@/components/decision-card";
 import { useRunStream } from "@/hooks/use-run-stream";
+import { useSettings } from "@/hooks/use-settings";
 import { startRun } from "@/lib/api";
 import { t } from "@/lib/i18n/en";
 import { mutateHistory } from "@/hooks/use-history";
 import { formatTokens } from "@/lib/format";
-import { Play, Loader2, FileText, ArrowRight } from "lucide-react";
+import { Play, Loader2, FileText, ArrowRight, Settings as SettingsIcon } from "lucide-react";
 import Link from "next/link";
 import type { AnalystKey } from "@/lib/types";
 
@@ -27,11 +27,16 @@ function RunPageInner() {
   const [ticker, setTicker] = useState(searchParams.get("ticker") ?? "");
   const [tickerValid, setTickerValid] = useState(false);
   const [analysts, setAnalysts] = useState<AnalystKey[]>(["market", "news", "social"]);
-  const [llmProvider, setLlmProvider] = useState("ollama");
-  const [llmModel, setLlmModel] = useState("gemma4:latest");
   const [analysisDate, setAnalysisDate] = useState(
     () => new Date().toISOString().slice(0, 10)
   );
+
+  // Provider/model are always read from saved Settings — the Run page no longer
+  // exposes a per-run override (user explicitly asked to lock this so the LLM
+  // they configured globally is always the LLM that gets used).
+  const { settings } = useSettings();
+  const llmProvider = settings?.llm_provider ?? "ollama";
+  const llmModel = settings?.deep_think_llm ?? "qwen2.5:3b";
 
   // Run state
   const [runId, setRunId] = useState<string | null>(null);
@@ -40,6 +45,53 @@ function RunPageInner() {
 
   // WS stream
   const stream = useRunStream(runId);
+
+  // Ask for browser-notification permission once, the first time the user
+  // navigates here. Browsers require a user gesture so we don't auto-ask on
+  // mount — we ask on the first Start Analysis click instead (see handleStart).
+  // Track whether we've already fired the completion notification so a hot
+  // reload / re-render of stream.isComplete doesn't double-fire.
+  const completionHandled = useRef<string | null>(null);
+
+  // Auto-navigate to the report page once the run completes. Wait a beat
+  // so the user sees the green "Complete" state on the pipeline before the
+  // route changes — feels more like the analysis "finished and is now
+  // showing you the report" rather than an abrupt jump.
+  useEffect(() => {
+    if (!runId || !stream.isComplete) return;
+    if (completionHandled.current === runId) return;
+    completionHandled.current = runId;
+
+    // Fire OS notification (already-granted permissions only; the prompt
+    // happens on Start click, not here, to keep behavior predictable).
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "granted") {
+        try {
+          const n = new Notification("TradingAgents — analysis complete", {
+            body: `${ticker || "Run"}: ${stream.decision ?? "see report"}`,
+            tag: `run-${runId}`,
+            icon: "/apple-touch-icon.png",
+          });
+          n.onclick = () => {
+            window.focus();
+            n.close();
+          };
+        } catch {
+          // Silently ignore — notification failures shouldn't break the flow.
+        }
+      }
+    }
+
+    // Toast as a fallback / extra confirmation when the tab is focused.
+    toast.success(`${ticker}: analysis complete — opening report…`);
+
+    // Brief delay so the pipeline's "complete" state is visible before nav.
+    const timer = window.setTimeout(() => {
+      mutateHistory();
+      router.push(`/history/${runId}`);
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [runId, stream.isComplete, stream.decision, ticker, router]);
 
   const handleValidated = useCallback(
     (valid: boolean) => {
@@ -52,12 +104,29 @@ function RunPageInner() {
     if (!ticker || !tickerValid || isStarting) return;
     setIsStarting(true);
 
+    // Request notification permission lazily on the first Start click —
+    // browsers require a user gesture, and we want the permission to be
+    // available by the time the run completes (minutes from now).
+    if (
+      typeof window !== "undefined" &&
+      "Notification" in window &&
+      Notification.permission === "default"
+    ) {
+      try {
+        await Notification.requestPermission();
+      } catch {
+        /* user dismissed — non-fatal */
+      }
+    }
+
     try {
+      // No llm_provider/llm_model in the request: the backend resolves these
+      // from the saved Settings via _build_run_config. This keeps the
+      // "always use the configured LLM" guarantee — there's no way for the
+      // Run page to drift from what's in Settings.
       const result = await startRun({
         ticker,
         analysts,
-        llm_provider: llmProvider,
-        llm_model: llmModel,
         analysis_date: analysisDate,
       });
       setRunId(result.run_id);
@@ -147,14 +216,28 @@ function RunPageInner() {
               />
             </div>
 
-            {/* Model picker */}
-            <ModelPicker
-              provider={llmProvider}
-              model={llmModel}
-              onProviderChange={setLlmProvider}
-              onModelChange={setLlmModel}
-              disabled={hasStarted && !stream.isComplete}
-            />
+            {/* LLM is always read from Settings (user-requested lock).
+                Show what will be used + a link to change it globally. */}
+            <div className="rounded-lg border border-white/[0.06] bg-white/[0.025] px-3 py-2.5 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[10px] uppercase tracking-[1px] text-white/35 mb-0.5">
+                  Using LLM (from Settings)
+                </p>
+                <p className="text-xs text-slate-200 truncate">
+                  <span className="font-semibold">{llmProvider}</span>
+                  <span className="text-slate-500"> · </span>
+                  <span className="font-mono text-[11px] text-slate-300">{llmModel || "(default)"}</span>
+                </p>
+              </div>
+              <Link
+                href="/settings"
+                className="inline-flex items-center gap-1 text-[11px] text-indigo-300 hover:text-indigo-200 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 rounded px-1.5 py-0.5"
+                aria-label="Change LLM provider in Settings"
+              >
+                <SettingsIcon size={11} aria-hidden="true" />
+                Change
+              </Link>
+            </div>
 
             {/* Start button */}
             <button
