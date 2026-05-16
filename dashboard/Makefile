@@ -25,7 +25,7 @@ TOKEN_FILE     := $(BACKEND_DIR)/data/.token
 export
 
 .PHONY: help setup dev backend frontend frontend-stop test lint build \
-        docker-up docker-down clean token
+        docker-up docker-down clean token hooks gitignore-audit
 
 # ── help ─────────────────────────────────────────────────────────────────────
 help: ## List all available make targets with descriptions
@@ -64,6 +64,15 @@ frontend: ## Start Next.js dev (single-instance guard; refuses if already runnin
 
 frontend-stop: ## Stop the Next.js dev server + reap orphan postcss/swc workers
 	@bash $(DASHBOARD_DIR)scripts/stop-frontend.sh
+
+# ── hooks ────────────────────────────────────────────────────────────────────
+hooks: ## Enable repo-managed git hooks (.githooks/) — runs the gitignore audit pre-commit
+	@cd $(DASHBOARD_DIR).. && git config core.hooksPath .githooks
+	@echo "✓ Git hooks enabled. Pre-commit will now run .githooks/pre-commit."
+	@echo "  To disable later: git config --unset core.hooksPath"
+
+gitignore-audit: ## One-off run of the gitignore audit (same check as the pre-commit hook)
+	@bash $(DASHBOARD_DIR)../.githooks/pre-commit
 
 # ── test ─────────────────────────────────────────────────────────────────────
 test: ## Run backend pytest + frontend pnpm test

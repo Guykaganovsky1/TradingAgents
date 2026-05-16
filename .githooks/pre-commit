@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+# .githooks/pre-commit
+# -------------------
+# Two checks, ordered by severity:
+#
+#  1. BLOCKING — silently-ignored source files.
+#     Any path inside dashboard/frontend/src, dashboard/backend, tradingagents,
+#     cli, scripts that matches a .gitignore rule. Catches the bug where a
+#     too-broad pattern (e.g. an unanchored `lib/`) eats real source code.
+#     If this fails the commit is aborted — fix the .gitignore first.
+#
+#  2. WARNING — untracked source files.
+#     New files under source dirs that aren't yet `git add`-ed. Doesn't block
+#     the commit (you may legitimately want to add only some files), just
+#     prints a heads-up so you don't ship half a change.
+#
+# Bypass (rarely needed):
+#   git commit --no-verify     # skips ALL hooks
+#   SKIP_GITIGNORE_AUDIT=1 git commit ...    # skips only check 1
+
+set -euo pipefail
+
+# Directories we consider "source" — extend this list as the repo grows.
+SOURCE_DIRS=(
+  "dashboard/frontend/src"
+  "dashboard/backend"
+  "tradingagents"
+  "cli"
+  "dashboard/scripts"
+)
+
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+DIM='\033[2m'
+RESET='\033[0m'
+
+# ── Check 1: silently-ignored source files ──────────────────────────────
+if [[ "${SKIP_GITIGNORE_AUDIT:-}" != "1" ]]; then
+  ignored_in_source=""
+  for dir in "${SOURCE_DIRS[@]}"; do
+    [[ -d "${dir}" ]] || continue
+    # --others --ignored returns all files git would normally hide because
+    # they match an exclude pattern. Combined with --exclude-standard this
+    # respects .gitignore + .git/info/exclude + global ignore.
+    while IFS= read -r f; do
+      [[ -z "${f}" ]] && continue
+      # Skip well-known build/cache outputs and runtime state dirs that
+      # SHOULD stay ignored even inside source dirs.
+      case "${f}" in
+        */node_modules/*|*/.next/*|*/__pycache__/*|*/.venv/*|\
+        */.ruff_cache/*|*/.pytest_cache/*|*/dist/*|*/build/*|\
+        */data/*|*/data|*/.cache/*|*/scanner_cache/*) continue ;;
+      esac
+      # Only flag files that look like source code or first-class config.
+      # Runtime artifacts (tokens, db files, logs) don't match any of these
+      # extensions, so they're filtered out implicitly.
+      case "${f}" in
+        *.ts|*.tsx|*.js|*.jsx|*.mjs|*.cjs|*.css|*.scss|*.html|*.svg|\
+        *.py|*.pyi|\
+        *.vue|*.svelte|\
+        *.md|*.mdx|\
+        *.toml|*.yaml|*.yml|*.json|\
+        *.sh|*.bash|*.zsh|\
+        *.sql|*.proto|Dockerfile|Makefile)
+          ignored_in_source+="  ${f}"$'\n'
+          ;;
+      esac
+    done < <(git ls-files --others --ignored --exclude-standard "${dir}" 2>/dev/null)
+  done
+
+  if [[ -n "${ignored_in_source}" ]]; then
+    echo -e "${RED}╔═══════════════════════════════════════════════════════════════╗${RESET}"
+    echo -e "${RED}║ pre-commit BLOCKED: source files silently ignored by .gitignore ║${RESET}"
+    echo -e "${RED}╚═══════════════════════════════════════════════════════════════╝${RESET}"
+    echo
+    echo "These source files are gitignored — your commit would NOT include them:"
+    echo
+    echo -e "${YELLOW}${ignored_in_source}${RESET}"
+    echo -e "${DIM}Common cause: an unanchored ignore pattern in .gitignore (e.g. \`lib/\`"
+    echo -e "matches every \`lib/\` in the tree). Add a leading slash to scope it"
+    echo -e "to the repo root: \`/lib/\`.${RESET}"
+    echo
+    echo -e "${DIM}Diagnose which rule is hiding each file:${RESET}"
+    echo -e "${DIM}  git check-ignore -v <file>${RESET}"
+    echo
+    echo -e "${DIM}Override (NOT recommended): SKIP_GITIGNORE_AUDIT=1 git commit ...${RESET}"
+    exit 1
+  fi
+fi
+
+# ── Check 2: untracked source files (warning only) ──────────────────────
+untracked_in_source=""
+for dir in "${SOURCE_DIRS[@]}"; do
+  [[ -d "${dir}" ]] || continue
+  while IFS= read -r f; do
+    [[ -z "${f}" ]] && continue
+    case "${f}" in
+      */node_modules/*|*/.next/*|*/__pycache__/*|*/.venv/*|\
+      */.ruff_cache/*|*/.pytest_cache/*|*/dist/*|*/build/*|\
+      */data/*|*/data|*/.cache/*|*/scanner_cache/*) continue ;;
+    esac
+    case "${f}" in
+      *.ts|*.tsx|*.js|*.jsx|*.mjs|*.cjs|*.css|*.scss|*.html|*.svg|\
+      *.py|*.pyi|*.vue|*.svelte|*.md|*.mdx|\
+      *.toml|*.yaml|*.yml|*.json|*.sh|*.bash|*.zsh|\
+      *.sql|*.proto|Dockerfile|Makefile)
+        untracked_in_source+="  ${f}"$'\n'
+        ;;
+    esac
+  done < <(git ls-files --others --exclude-standard "${dir}" 2>/dev/null)
+done
+
+if [[ -n "${untracked_in_source}" ]]; then
+  echo -e "${YELLOW}[pre-commit] WARNING: untracked source files (not in this commit):${RESET}"
+  echo -e "${untracked_in_source}"
+  echo -e "${DIM}If these belong with the change you're committing, abort with Ctrl-C,${RESET}"
+  echo -e "${DIM}\`git add <file>\` them, then re-commit.${RESET}"
+  echo
+fi
+
+echo -e "${GREEN}[pre-commit] gitignore audit clean${RESET}"
+exit 0
