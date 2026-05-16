@@ -271,7 +271,15 @@ export function ReportSummary({ runId, availableSections }: ReportSummaryProps) 
             )}
 
             {st.status === "ok" && (
-              <ProseMarkdown content={st.content} />
+              // Debate sections (investment/risk) ship as JSON with one entry
+              // per debater (bull_history, bear_history, judge_decision, …).
+              // Render those as nested per-agent cards; everything else as
+              // straight markdown.
+              s.key.endsWith("_debate_state") ? (
+                <DebateView content={st.content} kind={s.key} />
+              ) : (
+                <ProseMarkdown content={st.content} />
+              )
             )}
           </section>
         );
@@ -326,3 +334,90 @@ function ProseMarkdown({ content }: { content: string }) {
   );
 }
 
+// ------------------------------------------------------------------
+// Debate renderer
+// ------------------------------------------------------------------
+/**
+ * Per-debate-role layout. The backend stores each *_debate_state as a
+ * JSON object with one string field per debater plus a `judge_decision`
+ * verdict. We split that into separate color-coded sub-cards so the user
+ * sees who said what at a glance.
+ */
+interface DebateRole {
+  field: string;       // key in the debate JSON
+  agent: string;       // display name
+  accent: SectionDef["accent"];
+}
+
+const INVESTMENT_DEBATE_ROLES: DebateRole[] = [
+  { field: "judge_decision", agent: "Research Manager — Verdict", accent: "indigo" },
+  { field: "bull_history",   agent: "Bull Researcher",            accent: "emerald" },
+  { field: "bear_history",   agent: "Bear Researcher",            accent: "rose" },
+];
+
+const RISK_DEBATE_ROLES: DebateRole[] = [
+  { field: "judge_decision",       agent: "Risk Manager — Verdict",   accent: "indigo" },
+  { field: "risky_history",        agent: "Aggressive Analyst",       accent: "rose" },
+  { field: "neutral_history",      agent: "Neutral Analyst",          accent: "amber" },
+  { field: "safe_history",         agent: "Conservative Analyst",     accent: "blue" },
+];
+
+function DebateView({ content, kind }: { content: string; kind: string }) {
+  // Try to parse the inner JSON; fall back to markdown if it's not valid JSON.
+  let parsed: Record<string, unknown> | null = null;
+  try {
+    parsed = JSON.parse(content) as Record<string, unknown>;
+  } catch {
+    parsed = null;
+  }
+
+  if (!parsed) {
+    // Not JSON — just render as markdown so we don't drop data.
+    return <ProseMarkdown content={content} />;
+  }
+
+  const roles = kind === "risk_debate_state"
+    ? RISK_DEBATE_ROLES
+    : INVESTMENT_DEBATE_ROLES;
+
+  // Only render roles that actually have non-empty content.
+  const populated = roles.filter((r) => {
+    const v = parsed?.[r.field];
+    return typeof v === "string" && v.trim().length > 0;
+  });
+
+  if (populated.length === 0) {
+    return (
+      <p className="text-xs text-slate-500 py-2">
+        Debate transcript was empty for this run.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {populated.map((r) => {
+        const a = ACCENT_CLASSES[r.accent];
+        const text = String(parsed[r.field] ?? "").trim();
+        return (
+          <div
+            key={r.field}
+            className={cn(
+              "rounded-[10px] border p-3.5",
+              a.border,
+              a.bg
+            )}
+          >
+            <div className={cn(
+              "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[1px] mb-2",
+              a.chip
+            )}>
+              {r.agent}
+            </div>
+            <ProseMarkdown content={text} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
