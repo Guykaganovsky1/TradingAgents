@@ -15,7 +15,8 @@ import { startRun } from "@/lib/api";
 import { t } from "@/lib/i18n/en";
 import { mutateHistory } from "@/hooks/use-history";
 import { formatTokens } from "@/lib/format";
-import { Play, Loader2 } from "lucide-react";
+import { Play, Loader2, FileText, ArrowRight } from "lucide-react";
+import Link from "next/link";
 import type { AnalystKey } from "@/lib/types";
 
 function RunPageInner() {
@@ -219,6 +220,32 @@ function RunPageInner() {
               </p>
             )}
           </GlassCard>
+
+          {/* Completion CTA — appears once the run finishes */}
+          {runId && stream.isComplete && (
+            <Link
+              href={`/history/${runId}`}
+              className="group flex items-center justify-between gap-3 rounded-[14px] border border-emerald-400/30 bg-emerald-500/[0.06] px-5 py-4 transition-all hover:bg-emerald-500/[0.10] hover:border-emerald-400/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+              aria-label="View full report for completed analysis"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <FileText size={18} className="text-emerald-400 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-emerald-300">
+                    Analysis complete
+                  </p>
+                  <p className="text-[11px] text-slate-400 truncate">
+                    {stream.decision ?? "Decision"} ·{" "}
+                    {formatTokens(stream.tokensIn + stream.tokensOut)} tokens · Read all analyst reports
+                  </p>
+                </div>
+              </div>
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/[0.15] px-3 py-2 text-xs font-semibold text-emerald-300 group-hover:bg-emerald-500/[0.25] transition-colors">
+                View Full Report
+                <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
+              </span>
+            </Link>
+          )}
         </div>
       </div>
     </div>

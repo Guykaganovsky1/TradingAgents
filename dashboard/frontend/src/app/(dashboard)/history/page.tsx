@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { History, ChevronRight, Trash2 } from "lucide-react";
+import { History, ChevronRight, Trash2, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { GlassCard } from "@/components/glass-card";
 import { SignalBadge } from "@/components/signal-badge";
@@ -173,6 +173,18 @@ function HistoryRunCard({ run }: { run: RunIndex }) {
 
       {/* Actions */}
       <div className="flex items-center gap-2 shrink-0">
+        {/* Explicit "View Full Report" CTA — only shows for runs that have
+            something to show. Errored/running rows show no button (whole row
+            still navigates on click via the outer <Link>). */}
+        {(run.status === "complete" || run.status === "done") && (
+          <span
+            className="hidden sm:inline-flex items-center gap-1 rounded-md border border-indigo-400/30 bg-indigo-500/[0.08] px-2 py-1 text-[11px] font-medium text-indigo-300 transition-all group-hover:bg-indigo-500/[0.15] group-hover:border-indigo-400/50"
+            aria-hidden="true"
+          >
+            <FileText size={11} />
+            View Full Report
+          </span>
+        )}
         <button
           onClick={handleDelete}
           aria-label={`Delete run for ${run.ticker}`}
