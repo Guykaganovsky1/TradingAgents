@@ -1,12 +1,20 @@
 import { TrendingUp, Minus, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { HelpCircle } from "lucide-react";
 import type { Signal } from "@/lib/types";
 
 interface SignalBadgeProps {
-  signal: Signal;
+  /** May be null/undefined for runs that errored or are still in progress. */
+  signal: Signal | null | undefined;
   size?: "sm" | "md" | "lg";
   className?: string;
 }
+
+const fallback = {
+  label: "—",
+  classes: "bg-white/[0.04] border border-white/[0.08] text-slate-500",
+  Icon: HelpCircle,
+};
 
 const config: Record<
   Signal,
@@ -49,7 +57,10 @@ export function SignalBadge({
   size = "md",
   className,
 }: SignalBadgeProps) {
-  const { label, classes, Icon } = config[signal];
+  // Guard: runs without a decision (errored, pending, or non-canonical
+  // string from backend) get a neutral placeholder badge instead of crashing.
+  const entry = signal && signal in config ? config[signal as Signal] : fallback;
+  const { label, classes, Icon } = entry;
   return (
     <span
       role="status"

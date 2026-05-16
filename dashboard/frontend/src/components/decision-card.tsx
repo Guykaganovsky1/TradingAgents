@@ -1,11 +1,12 @@
-import { TrendingUp, Minus, TrendingDown } from "lucide-react";
+import { TrendingUp, Minus, TrendingDown, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatConfidence, formatDate } from "@/lib/format";
 import { colors } from "@/lib/theme";
 import type { Signal } from "@/lib/types";
 
 interface DecisionCardProps {
-  decision: Signal;
+  /** May be null for runs that errored or are still in progress. */
+  decision: Signal | null | undefined;
   confidence: number;
   ticker: string;
   date: string;
@@ -56,8 +57,20 @@ export function DecisionCard({
   llmProvider,
   className,
 }: DecisionCardProps) {
-  const { gradient, bg, border, text, Icon } = config[decision];
-  const pct = Math.round(confidence * 100);
+  // Same guard as SignalBadge — runs without a decision render a neutral
+  // "Pending / Unknown" card instead of crashing the History page.
+  const entry =
+    decision && decision in config
+      ? config[decision as Signal]
+      : {
+          gradient: `linear-gradient(135deg, ${colors.textMuted ?? "#64748b"}, ${colors.textFaint ?? "#475569"})`,
+          bg: "bg-white/[0.03]",
+          border: "border-white/[0.08]",
+          text: colors.textMuted ?? "#64748b",
+          Icon: HelpCircle,
+        };
+  const { gradient, bg, border, text, Icon } = entry;
+  const pct = Math.round((confidence ?? 0) * 100);
 
   return (
     <div
