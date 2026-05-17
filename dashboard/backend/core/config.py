@@ -19,7 +19,15 @@ class Settings(BaseSettings):
     port: int = 8787
 
     # CORS
-    cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    cors_origins: list[str] = [
+        # 3000 is the Next.js default — kept for backwards compatibility
+        # with any older deployment scripts / dev habits.
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        # 3232 is the new canonical port for this dashboard.
+        "http://localhost:3232",
+        "http://127.0.0.1:3232",
+    ]
 
     # Data directory (holds DB, token, fernet key, audit log)
     data_dir: Path = Path(__file__).parent.parent / "data"

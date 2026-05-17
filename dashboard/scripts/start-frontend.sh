@@ -25,7 +25,10 @@ DASHBOARD_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 FRONTEND_DIR="${DASHBOARD_DIR}/frontend"
 PGID_FILE="${DASHBOARD_DIR}/.frontend.pgid"
 LOG_FILE="${DASHBOARD_DIR}/.frontend.log"
-FRONTEND_PORT="${FRONTEND_PORT:-3000}"
+FRONTEND_PORT="${FRONTEND_PORT:-3232}"
+# Tell Next.js which port to bind. PORT env is the canonical knob for
+# Next 14+ when no --port flag is passed via pnpm dev.
+export PORT="${FRONTEND_PORT}"
 
 RED='\033[0;31m'
 YELLOW='\033[1;33m'

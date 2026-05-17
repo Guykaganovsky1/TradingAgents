@@ -24,7 +24,7 @@ export default defineConfig({
   reporter: "list",
 
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: "http://localhost:3232",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
@@ -40,7 +40,7 @@ export default defineConfig({
     ? {
         // CI: use the guarded launcher so the process group can be reaped.
         command: "bash ../scripts/start-frontend.sh",
-        url: "http://localhost:3000",
+        url: "http://localhost:3232",
         reuseExistingServer: false,
         timeout: 180_000,
       }
@@ -50,7 +50,7 @@ export default defineConfig({
         // true means Playwright will check the URL and fail with a clear
         // message if nothing is listening — but it will NEVER spawn one.
         command: "echo 'Refusing to auto-spawn dev server — start it manually: bash dashboard/scripts/start-frontend.sh --bg' && exit 1",
-        url: "http://localhost:3000",
+        url: "http://localhost:3232",
         reuseExistingServer: true,
         timeout: 10_000,
       },
