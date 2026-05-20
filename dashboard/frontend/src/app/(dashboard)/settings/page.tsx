@@ -51,6 +51,7 @@ function SettingsForm({ settings }: { settings: AppSettings }) {
     google_api_key: "",
     moonshot_api_key: "",
     kimi_api_key: "",
+    opencode_api_key: "",
   });
 
   const [saving, setSaving] = useState(false);
@@ -61,6 +62,7 @@ function SettingsForm({ settings }: { settings: AppSettings }) {
   const [showGoogle, setShowGoogle] = useState(false);
   const [showMoonshot, setShowMoonshot] = useState(false);
   const [showKimi, setShowKimi] = useState(false);
+  const [showOpencode, setShowOpencode] = useState(false);
 
   /**
    * PATCH /api/settings takes a single {key, value} pair.
@@ -85,6 +87,7 @@ function SettingsForm({ settings }: { settings: AppSettings }) {
       if (secrets.google_api_key) updates.push(["google_api_key", secrets.google_api_key]);
       if (secrets.moonshot_api_key) updates.push(["moonshot_api_key", secrets.moonshot_api_key]);
       if (secrets.kimi_api_key) updates.push(["kimi_api_key", secrets.kimi_api_key]);
+      if (secrets.opencode_api_key) updates.push(["opencode_api_key", secrets.opencode_api_key]);
 
       // Fire all patches sequentially (backend takes one at a time)
       for (const [key, value] of updates) {
@@ -158,6 +161,7 @@ function SettingsForm({ settings }: { settings: AppSettings }) {
                   "moonshot",
                   "kimi",        // Kimi for Coding (api.kimi.com/coding/v1)
                   "kimi-cli",
+                  "opencode-go", // OpenCode Go proxy — Kimi K2.6 + GLM-5.1 + …
                   "codex",
                   "codex-cli",
                   "xai",
@@ -287,6 +291,20 @@ function SettingsForm({ settings }: { settings: AppSettings }) {
               onToggleShow={() => setShowKimi((v) => !v)}
               value={secrets.kimi_api_key}
               onChange={(v) => setSecrets({ ...secrets, kimi_api_key: v })}
+              inputClass={inputClass}
+            />
+            <SecretField
+              label="OpenCode Go Key (12 models incl. Kimi K2.6, GLM-5.1, DeepSeek V4)"
+              placeholder={
+                settings.has_opencode_key
+                  ? "••••••••••••••••••••"
+                  : "sk-... — from /connect inside the OpenCode TUI (opencode.ai/auth)"
+              }
+              isConfigured={Boolean(settings.has_opencode_key)}
+              show={showOpencode}
+              onToggleShow={() => setShowOpencode((v) => !v)}
+              value={secrets.opencode_api_key}
+              onChange={(v) => setSecrets({ ...secrets, opencode_api_key: v })}
               inputClass={inputClass}
             />
           </div>

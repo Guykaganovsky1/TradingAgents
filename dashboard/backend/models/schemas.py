@@ -101,6 +101,7 @@ class SettingsKey(StrEnum):
     google_api_key = "google_api_key"
     moonshot_api_key = "moonshot_api_key"
     kimi_api_key = "kimi_api_key"
+    opencode_api_key = "opencode_api_key"
     alpha_vantage_api_key = "alpha_vantage_api_key"
     output_language = "output_language"
     max_debate_rounds = "max_debate_rounds"
@@ -123,6 +124,7 @@ SENSITIVE_KEYS: set[str] = {
     SettingsKey.google_api_key,
     SettingsKey.moonshot_api_key,
     SettingsKey.kimi_api_key,
+    SettingsKey.opencode_api_key,
     SettingsKey.alpha_vantage_api_key,
     SettingsKey.reddit_client_secret,
 }
@@ -331,6 +333,7 @@ class SettingsResponse(BaseModel):
     has_alpha_vantage_key: bool = False
     has_moonshot_key: bool = False
     has_kimi_key: bool = False
+    has_opencode_key: bool = False
 
 
 class LLMTestRequest(BaseModel):

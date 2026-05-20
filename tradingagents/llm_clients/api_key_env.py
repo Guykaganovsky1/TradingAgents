@@ -34,6 +34,8 @@ PROVIDER_API_KEY_ENV: dict[str, Optional[str]] = {
     "moonshot":   "MOONSHOT_API_KEY",
     # Kimi for Coding (api.kimi.com/coding/v1, sk-kimi-* keys, UA-gated)
     "kimi":       "KIMI_API_KEY",
+    # OpenCode Go subscription proxy (opencode.ai/zen/go/v1)
+    "opencode-go": "OPENCODE_API_KEY",
     # Local runtimes do not authenticate.
     "ollama":     None,
 }

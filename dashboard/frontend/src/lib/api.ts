@@ -107,6 +107,7 @@ const AppSettingsSchema = z
     has_alpha_vantage_key: z.boolean().optional(),
     has_moonshot_key: z.boolean().optional(),
     has_kimi_key: z.boolean().optional(),
+    has_opencode_key: z.boolean().optional(),
   })
   .passthrough();   // backend may return extra fields we don't model yet
 

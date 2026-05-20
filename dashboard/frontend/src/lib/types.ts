@@ -193,6 +193,7 @@ export interface AppSettings {
   has_alpha_vantage_key?: boolean;
   has_moonshot_key?: boolean;
   has_kimi_key?: boolean;
+  has_opencode_key?: boolean;
 }
 
 /**

@@ -185,6 +185,11 @@ _PROVIDER_BASE_URL = {
     "ollama":     "http://localhost:11434/v1",
     # Moonshot AI standard endpoint (kimi-k2-* family, sk-... keys)
     "moonshot":   "https://api.moonshot.ai/v1",
+    # OpenCode Go — subscription proxy fronting Kimi K2.6, GLM-5.1, DeepSeek V4,
+    # Qwen 3.6, MiMo V2.5 etc. via standard OpenAI Chat Completions. The proxy
+    # strips the thinking-protocol gate that direct api.kimi.com/coding/v1
+    # requires, so reasoning_content is returned as data (not roundtripped).
+    "opencode-go": "https://opencode.ai/zen/go/v1",
     # Kimi for Coding endpoint — accepts sk-kimi-* keys but only when the
     # caller identifies as a recognized coding-agent client via User-Agent
     # (Kimi CLI, Claude Code, Roo Code, Kilo Code, etc.). Without the

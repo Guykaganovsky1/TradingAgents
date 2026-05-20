@@ -11,6 +11,7 @@ _OPENAI_COMPATIBLE = (
     "ollama", "openrouter",
     "moonshot",  # Moonshot AI — Kimi K2 + moonshot-v1 family, OpenAI-compatible
     "kimi",      # Kimi for Coding — kimi-for-coding model, UA-gated endpoint
+    "opencode-go",  # OpenCode Go proxy — Kimi K2.6, GLM-5.1, DeepSeek V4, Qwen 3.6, …
 )
 
 

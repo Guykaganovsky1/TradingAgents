@@ -13,6 +13,29 @@ logger = logging.getLogger("dashboard.services.llm_catalog")
 # The Codex API (Responses API) and Codex CLI are exposed as separate
 # providers so the user can wire the coding-planner agent independently.
 # ---------------------------------------------------------------------------
+OPENCODE_GO_MODELS: dict[str, list[dict[str, str]]] = {
+    # OpenCode Go subscription proxy. One API key fronts ~12 frontier
+    # coding-tuned models via standard OpenAI Chat Completions wire format.
+    # Endpoint: https://opencode.ai/zen/go/v1
+    # Verified end-to-end (tool_calls returned correctly) on 2026-05-20.
+    "deep": [
+        {"label": "Kimi K2.6 — Moonshot's flagship, 200k ctx", "value": "kimi-k2.6"},
+        {"label": "GLM-5.1 — Zhipu, strong coding & reasoning", "value": "glm-5.1"},
+        {"label": "DeepSeek V4 Pro — Best DeepSeek tier", "value": "deepseek-v4-pro"},
+        {"label": "Qwen 3.6 Plus — Alibaba's latest", "value": "qwen3.6-plus"},
+        {"label": "MiMo V2.5 Pro — Xiaomi's reasoning model", "value": "mimo-v2.5-pro"},
+        {"label": "Kimi K2.5 — Earlier Kimi K2 variant", "value": "kimi-k2.5"},
+        {"label": "GLM-5 — Previous Zhipu flagship", "value": "glm-5"},
+    ],
+    "quick": [
+        {"label": "DeepSeek V4 Flash — Fastest, cheapest", "value": "deepseek-v4-flash"},
+        {"label": "MiMo V2.5 — Faster MiMo variant", "value": "mimo-v2.5"},
+        {"label": "Qwen 3.5 Plus — Solid baseline Qwen", "value": "qwen3.5-plus"},
+        {"label": "Kimi K2.5 — Faster Kimi", "value": "kimi-k2.5"},
+    ],
+}
+
+
 MOONSHOT_MODELS: dict[str, list[dict[str, str]]] = {
     # Moonshot AI models. All OpenAI-compatible function-calling.
     # Endpoint: https://api.moonshot.ai/v1
@@ -93,6 +116,9 @@ def get_providers() -> list[str]:
     # Kimi for Coding — separate endpoint (api.kimi.com/coding/v1), sk-kimi-* keys.
     if "kimi" not in upstream:
         upstream.append("kimi")
+    # OpenCode Go — subscription proxy fronting Kimi K2.6/GLM-5.1/DeepSeek V4/...
+    if "opencode-go" not in upstream:
+        upstream.append("opencode-go")
     return upstream
 
 
@@ -130,6 +156,9 @@ def get_model_options() -> dict[str, dict[str, list[dict[str, str]]]]:
             "deep":  [{"label": "Kimi-k2.6 (for Coding) - 262k ctx, reasoning", "value": "kimi-for-coding"}],
             "quick": [{"label": "Kimi-k2.6 (for Coding) - 262k ctx, reasoning", "value": "kimi-for-coding"}],
         }
+    # OpenCode Go — full curated catalog (Kimi K2.6 + GLM-5.1 + DeepSeek V4 + …).
+    if "opencode-go" not in result:
+        result["opencode-go"] = {mode: list(opts) for mode, opts in OPENCODE_GO_MODELS.items()}
     return result
 
 

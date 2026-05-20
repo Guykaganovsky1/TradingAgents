@@ -71,6 +71,7 @@ async def get_settings_endpoint(
         has_alpha_vantage_key=has_secret(SettingsKey.alpha_vantage_api_key),
         has_moonshot_key=has_secret(SettingsKey.moonshot_api_key),
         has_kimi_key=has_secret(SettingsKey.kimi_api_key),
+        has_opencode_key=has_secret(SettingsKey.opencode_api_key),
     )
 
 
