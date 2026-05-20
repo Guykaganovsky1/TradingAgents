@@ -268,10 +268,14 @@ function RunPageInner() {
               </Link>
             </div>
 
-            {/* Start / Stop button — Start when idle, Stop when in flight.
-                We never show both: a run is either yours-to-launch or
-                yours-to-cancel. After completion the Start button comes
-                back so the user can run a different ticker. */}
+            {/* Three-state button:
+                 • running       → red 'Stop Analysis'
+                 • just finished → green 'View Results →' (auto-redirect runs
+                                   in parallel; this is the explicit CTA)
+                 • idle          → indigo 'Start Analysis'
+                We never show two at once so the primary action is always
+                unambiguous. Order: in-flight check first, then completion,
+                then default. */}
             {isInFlight ? (
               <button
                 type="button"
@@ -285,6 +289,21 @@ function RunPageInner() {
                 ) : (
                   <><Square size={14} fill="currentColor" /> Stop Analysis</>
                 )}
+              </button>
+            ) : runId && stream.isComplete && !stream.errorMessage ? (
+              <button
+                type="button"
+                onClick={() => router.push(`/history/${runId}`)}
+                className="w-full flex items-center justify-center gap-2 rounded-[10px] py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+                style={{
+                  background:
+                    "linear-gradient(135deg, #10b981, #059669)",
+                }}
+                aria-label="View the full analyst briefing for this completed run"
+              >
+                <FileText size={16} aria-hidden="true" />
+                ✓ Analysis Finished — View Results
+                <ArrowRight size={14} aria-hidden="true" />
               </button>
             ) : (
               <button

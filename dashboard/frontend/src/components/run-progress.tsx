@@ -69,13 +69,17 @@ export function RunProgress({
     caption =
       wsStatus === "connecting" || wsStatus === "reconnecting"
         ? "Connecting to the run…"
-        : "Waiting for the first agent to start…";
+        : "Waiting for the first agent to finish…";
   } else if (running) {
-    caption = `${finished} of ${total} agents complete · ${running.name} running`;
+    // Name the current agent first — that's the bit the user actually
+    // wants to know ('which one of you is working right now?'). Then
+    // the count for context. Bullet → arrow makes the agent name read
+    // as the "primary" while the progress is metadata.
+    caption = `▶ ${running.name} is working… (${finished}/${total} agents complete)`;
   } else if (finished === total && total > 0) {
-    caption = "Finalising decision…";
+    caption = "Finalising decision — Portfolio Manager is synthesising…";
   } else {
-    caption = `${finished} of ${total} agents complete`;
+    caption = `${finished} of ${total} agents complete · waiting for next agent to start…`;
   }
 
   return (
