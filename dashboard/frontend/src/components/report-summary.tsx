@@ -259,10 +259,17 @@ export function ReportSummary({ runId, availableSections }: ReportSummaryProps) 
                   <p className="text-[11px] text-slate-500 mt-0.5">{s.agent}</p>
                 </div>
               </div>
-              {st.status === "ok" && (() => {
-                const sig = deriveSectionSignal(s.key, st.content);
-                return sig ? <SignalBadge signal={sig} size="sm" /> : null;
-              })()}
+              {/* Always render the badge once content loads — when no
+                  stance can be derived from the text it shows the neutral
+                  '—' chip rather than disappearing, so the user sees
+                  visual consistency across all sections. SignalBadge
+                  itself handles the null fallback internally. */}
+              {st.status === "ok" && (
+                <SignalBadge
+                  signal={deriveSectionSignal(s.key, st.content)}
+                  size="sm"
+                />
+              )}
             </header>
 
             {/* Body */}
@@ -429,7 +436,7 @@ function DebateView({ content, kind }: { content: string; kind: string }) {
               )}>
                 {r.agent}
               </div>
-              {sig && <SignalBadge signal={sig} size="sm" />}
+              <SignalBadge signal={sig} size="sm" />
             </div>
             <ProseMarkdown content={text} />
           </div>

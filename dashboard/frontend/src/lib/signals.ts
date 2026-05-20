@@ -26,6 +26,12 @@ const ALIASES: Record<string, Signal> = {
   "bull": "BUY",
   "accumulate": "BUY",
   "add": "BUY",
+  "positive": "BUY",
+  "uptrend": "BUY",
+  "upside": "BUY",
+  "favorable": "BUY",
+  "favourable": "BUY",
+  "outperform": "BUY",
   // HOLD family
   "hold": "HOLD",
   "neutral": "HOLD",
@@ -35,6 +41,10 @@ const ALIASES: Record<string, Signal> = {
   "maintain": "HOLD",
   "wait": "HOLD",
   "watch": "HOLD",
+  "mixed": "HOLD",
+  "balanced": "HOLD",
+  "uncertain": "HOLD",
+  "sideways": "HOLD",
   // SELL family
   "sell": "SELL",
   "strong sell": "SELL",
@@ -47,6 +57,12 @@ const ALIASES: Record<string, Signal> = {
   "reduce": "SELL",
   "trim": "SELL",
   "exit": "SELL",
+  "negative": "SELL",
+  "downtrend": "SELL",
+  "downside": "SELL",
+  "unfavorable": "SELL",
+  "unfavourable": "SELL",
+  "underperform": "SELL",
 };
 
 /**
@@ -108,9 +124,11 @@ export function extractSignal(content: string | null | undefined): Signal | null
   }
 
   // 2) Last-occurring vocabulary token, with word boundaries so 'sellers'
-  //    and 'holdings' don't false-match.
+  //    and 'holdings' don't false-match. Expanded set covers analyst-style
+  //    sentiment words ('positive', 'uptrend', 'outperform') that news /
+  //    market reports use instead of a clean Buy/Sell call.
   const vocabRegex =
-    /\b(strong\s+buy|strong\s+sell|over\s*weight|under\s*weight|market\s+weight|buy|sell|hold|neutral|bullish|bearish|long|short|accumulate|reduce|trim|wait|watch|maintain|exit|bull|bear)\b/gi;
+    /\b(strong\s+buy|strong\s+sell|over\s*weight|under\s*weight|market\s+weight|market\s+perform|outperform|underperform|buy|sell|hold|neutral|bullish|bearish|long|short|accumulate|reduce|trim|wait|watch|maintain|exit|bull|bear|positive|negative|uptrend|downtrend|upside|downside|favorable|favourable|unfavorable|unfavourable|mixed|balanced|uncertain|sideways)\b/gi;
   let lastToken: string | null = null;
   for (const m of stripped.matchAll(vocabRegex)) {
     lastToken = m[1] ?? null;
