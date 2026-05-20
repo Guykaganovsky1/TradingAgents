@@ -2,10 +2,20 @@ import { TrendingUp, Minus, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HelpCircle } from "lucide-react";
 import type { Signal } from "@/lib/types";
+import { normalizeSignal } from "@/lib/signals";
 
 interface SignalBadgeProps {
-  /** May be null/undefined for runs that errored or are still in progress. */
-  signal: Signal | null | undefined;
+  /**
+   * Decision string from any source. May be:
+   *  - A canonical signal: 'BUY' | 'HOLD' | 'SELL'
+   *  - A title-case agent output: 'Buy' | 'Hold' | 'Sell'
+   *  - A 5-tier rating: 'Overweight' | 'Underweight'
+   *  - An analyst stance: 'bullish' | 'bearish' | 'positive' …
+   *  - null/undefined for runs that errored or are still in progress
+   * normalizeSignal() maps all known variants to the 3 canonical values;
+   * unknown strings render as the neutral '—' chip.
+   */
+  signal: Signal | string | null | undefined;
   size?: "sm" | "md" | "lg";
   className?: string;
 }
@@ -57,9 +67,12 @@ export function SignalBadge({
   size = "md",
   className,
 }: SignalBadgeProps) {
-  // Guard: runs without a decision (errored, pending, or non-canonical
-  // string from backend) get a neutral placeholder badge instead of crashing.
-  const entry = signal && signal in config ? config[signal as Signal] : fallback;
+  // Normalize first — agents emit 5-tier ratings ('Hold', 'Overweight'),
+  // 3-tier strings in mixed case ('Buy', 'sell'), and other phrasings.
+  // Map them all to BUY / HOLD / SELL or null. Then fall back to the
+  // neutral chip when the input was unparseable.
+  const canonical = normalizeSignal(signal ?? null);
+  const entry = canonical ? config[canonical] : fallback;
   const { label, classes, Icon } = entry;
   return (
     <span
