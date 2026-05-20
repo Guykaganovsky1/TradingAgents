@@ -14,24 +14,30 @@ logger = logging.getLogger("dashboard.services.llm_catalog")
 # providers so the user can wire the coding-planner agent independently.
 # ---------------------------------------------------------------------------
 OPENCODE_GO_MODELS: dict[str, list[dict[str, str]]] = {
-    # OpenCode Go subscription proxy. One API key fronts ~12 frontier
+    # OpenCode Go subscription proxy. One API key fronts multiple frontier
     # coding-tuned models via standard OpenAI Chat Completions wire format.
     # Endpoint: https://opencode.ai/zen/go/v1
-    # Verified end-to-end (tool_calls returned correctly) on 2026-05-20.
+    #
+    # Compatibility status verified end-to-end 2026-05-20 with a multi-turn
+    # tool-call probe (the actual usage pattern of TradingAgents' analyst
+    # loop, not just a single-turn 'hello'):
+    #
+    #   ✅ kimi-k2.6        works (Moonshot AI, no reasoning roundtrip)
+    #   ✅ kimi-k2.5        works (Moonshot AI, no reasoning roundtrip)
+    #   ❌ glm-5.1 / glm-5  reasoning_content gate on multi-turn
+    #   ❌ deepseek-v4-*    reasoning_content gate on multi-turn
+    #   ❌ qwen3.6-plus     reasoning_content gate on multi-turn
+    #   ❌ mimo-v2.5-*      reasoning_content gate on multi-turn
+    #
+    # We expose only the working models. The rest require a langchain
+    # subclass that preserves reasoning_content across turns — out of scope.
     "deep": [
-        {"label": "Kimi K2.6 — Moonshot's flagship, 200k ctx", "value": "kimi-k2.6"},
-        {"label": "GLM-5.1 — Zhipu, strong coding & reasoning", "value": "glm-5.1"},
-        {"label": "DeepSeek V4 Pro — Best DeepSeek tier", "value": "deepseek-v4-pro"},
-        {"label": "Qwen 3.6 Plus — Alibaba's latest", "value": "qwen3.6-plus"},
-        {"label": "MiMo V2.5 Pro — Xiaomi's reasoning model", "value": "mimo-v2.5-pro"},
-        {"label": "Kimi K2.5 — Earlier Kimi K2 variant", "value": "kimi-k2.5"},
-        {"label": "GLM-5 — Previous Zhipu flagship", "value": "glm-5"},
+        {"label": "Kimi K2.6 — Moonshot's flagship, multi-turn verified", "value": "kimi-k2.6"},
+        {"label": "Kimi K2.5 — Earlier Kimi K2 variant, multi-turn verified", "value": "kimi-k2.5"},
     ],
     "quick": [
-        {"label": "DeepSeek V4 Flash — Fastest, cheapest", "value": "deepseek-v4-flash"},
-        {"label": "MiMo V2.5 — Faster MiMo variant", "value": "mimo-v2.5"},
-        {"label": "Qwen 3.5 Plus — Solid baseline Qwen", "value": "qwen3.5-plus"},
-        {"label": "Kimi K2.5 — Faster Kimi", "value": "kimi-k2.5"},
+        {"label": "Kimi K2.5 — Faster, multi-turn verified", "value": "kimi-k2.5"},
+        {"label": "Kimi K2.6 — Same as deep model", "value": "kimi-k2.6"},
     ],
 }
 
