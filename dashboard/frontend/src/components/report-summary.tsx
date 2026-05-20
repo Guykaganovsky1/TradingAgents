@@ -429,7 +429,11 @@ function DebateView({ content, kind }: { content: string; kind: string }) {
               a.bg
             )}
           >
-            <div className="flex items-center justify-between gap-2 mb-2">
+            {/* Sub-card header mirrors the outer section header pattern:
+                role chip + signal pill, separated from the body by a
+                subtle bottom border so the eye reads 'header / content'
+                at a glance instead of one continuous block. */}
+            <div className="flex items-center justify-between gap-2 mb-3 pb-2.5 border-b border-white/[0.06]">
               <div className={cn(
                 "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[1px]",
                 a.chip
