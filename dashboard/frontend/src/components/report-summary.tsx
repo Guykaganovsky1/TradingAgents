@@ -32,6 +32,8 @@ import {
 } from "lucide-react";
 import { getRunReport } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { SignalBadge } from "@/components/signal-badge";
+import { extractSignal } from "@/lib/signals";
 import type { ReportSection } from "@/lib/types";
 
 // ------------------------------------------------------------------
@@ -244,7 +246,11 @@ export function ReportSummary({ runId, availableSections }: ReportSummaryProps) 
               a.bg
             )}
           >
-            {/* Section header */}
+            {/* Section header — agent name + a SignalBadge derived from the
+                section content. For debate states we pull the verdict from
+                the parsed JSON; for narrative sections we scan the markdown
+                for an explicit Recommendation/Rating/Decision marker, then
+                fall back to last-occurring stance vocabulary. */}
             <header className="flex items-center justify-between gap-3 mb-3 pb-3 border-b border-white/[0.06]">
               <div className="flex items-center gap-2.5 min-w-0">
                 <s.Icon size={16} className={cn("shrink-0", a.icon)} aria-hidden="true" />
@@ -253,6 +259,10 @@ export function ReportSummary({ runId, availableSections }: ReportSummaryProps) 
                   <p className="text-[11px] text-slate-500 mt-0.5">{s.agent}</p>
                 </div>
               </div>
+              {st.status === "ok" && (() => {
+                const sig = deriveSectionSignal(s.key, st.content);
+                return sig ? <SignalBadge signal={sig} size="sm" /> : null;
+              })()}
             </header>
 
             {/* Body */}
@@ -399,6 +409,10 @@ function DebateView({ content, kind }: { content: string; kind: string }) {
       {populated.map((r) => {
         const a = ACCENT_CLASSES[r.accent];
         const text = String(parsed[r.field] ?? "").trim();
+        // Each debater's text gets its own signal scan so Bull/Bear/Judge
+        // can show different stances side-by-side ('Bull says BUY, Bear
+        // says SELL, Judge says HOLD').
+        const sig = extractSignal(text);
         return (
           <div
             key={r.field}
@@ -408,11 +422,14 @@ function DebateView({ content, kind }: { content: string; kind: string }) {
               a.bg
             )}
           >
-            <div className={cn(
-              "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[1px] mb-2",
-              a.chip
-            )}>
-              {r.agent}
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className={cn(
+                "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[1px]",
+                a.chip
+              )}>
+                {r.agent}
+              </div>
+              {sig && <SignalBadge signal={sig} size="sm" />}
             </div>
             <ProseMarkdown content={text} />
           </div>
@@ -420,4 +437,36 @@ function DebateView({ content, kind }: { content: string; kind: string }) {
       })}
     </div>
   );
+}
+
+// ------------------------------------------------------------------
+// Per-section signal derivation
+// ------------------------------------------------------------------
+/**
+ * Decide what SignalBadge to show in a section header.
+ *
+ * For *_debate_state sections the content is a JSON envelope —
+ * pull the judge's verdict text and scan that. For narrative sections
+ * (markdown), scan the whole content. extractSignal() handles the
+ * "Recommendation: X" marker + last-occurring vocabulary fallback.
+ *
+ * Returns null when nothing recognisable is found, so the header
+ * gracefully renders no pill instead of a misleading guess.
+ */
+function deriveSectionSignal(
+  sectionKey: string,
+  content: string,
+): import("@/lib/types").Signal | null {
+  if (sectionKey.endsWith("_debate_state")) {
+    try {
+      const parsed = JSON.parse(content) as Record<string, unknown>;
+      const verdict = parsed["judge_decision"];
+      if (typeof verdict === "string") {
+        return extractSignal(verdict);
+      }
+    } catch {
+      // Not JSON — fall through to scanning the raw text below.
+    }
+  }
+  return extractSignal(content);
 }
