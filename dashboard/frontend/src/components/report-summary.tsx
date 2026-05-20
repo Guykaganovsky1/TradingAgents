@@ -259,12 +259,15 @@ export function ReportSummary({ runId, availableSections }: ReportSummaryProps) 
                   <p className="text-[11px] text-slate-500 mt-0.5">{s.agent}</p>
                 </div>
               </div>
-              {/* Always render the badge once content loads — when no
-                  stance can be derived from the text it shows the neutral
-                  '—' chip rather than disappearing, so the user sees
-                  visual consistency across all sections. SignalBadge
-                  itself handles the null fallback internally. */}
-              {st.status === "ok" && (
+              {/* Outer section signal pill — only for NARRATIVE sections.
+                  Debate sections (investment/risk) intentionally skip it:
+                  each debater inside renders their own pill, and the outer
+                  pill duplicates the Judge sub-card's verdict while looking
+                  contradictory when individual debaters disagree (e.g. Bull
+                  says BUY, Bear says SELL, header summarising as one of them
+                  reads as "the section says X" which isn't the right mental
+                  model for a debate). */}
+              {st.status === "ok" && !s.key.endsWith("_debate_state") && (
                 <SignalBadge
                   signal={deriveSectionSignal(s.key, st.content)}
                   size="sm"
