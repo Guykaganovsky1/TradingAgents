@@ -265,6 +265,14 @@ class OpenAIClient(BaseLLMClient):
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]
 
+        # Network resilience defaults. The OpenAI SDK ships max_retries=2 and
+        # no read timeout — fine for OpenAI's own infra, fragile against
+        # third-party proxies (OpenCode Go, OpenRouter, etc.) which can drop
+        # idle connections mid-stream with httpx.RemoteProtocolError. We
+        # bump both unless the caller explicitly set their own.
+        llm_kwargs.setdefault("max_retries", 5)
+        llm_kwargs.setdefault("timeout", 120.0)
+
         # Native OpenAI: use Responses API for consistent behavior across
         # all model families. Third-party providers use Chat Completions.
         if self.provider == "openai":
