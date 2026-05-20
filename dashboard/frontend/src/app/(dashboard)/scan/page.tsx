@@ -187,7 +187,14 @@ function ScanPageInner() {
   const stream = useScanStream(scanId);
 
   // History
-  const { scans, isLoading: historyLoading, error: historyError, mutate: refetchHistory } = useScans();
+  const {
+    scans,
+    isLoading: historyLoading,
+    isValidating: historyValidating,
+    error: historyError,
+    mutate: refetchHistory,
+    retry: retryHistory,
+  } = useScans();
 
   // -----------------------------------------------------------------------
   // Handlers
@@ -485,10 +492,16 @@ function ScanPageInner() {
               {t.scan.loadError}
               <button
                 type="button"
-                onClick={() => refetchHistory()}
-                className={cn("underline hover:no-underline", focusRing, "rounded")}
+                onClick={() => retryHistory()}
+                disabled={historyValidating}
+                className={cn(
+                  "underline hover:no-underline disabled:opacity-50 disabled:no-underline",
+                  focusRing,
+                  "rounded",
+                )}
+                aria-label="Retry loading scan history"
               >
-                {t.scan.retryLabel}
+                {historyValidating ? "Retrying…" : t.scan.retryLabel}
               </button>
             </div>
           ) : scans.length === 0 ? (

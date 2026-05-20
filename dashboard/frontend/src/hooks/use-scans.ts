@@ -4,6 +4,7 @@
  * Mirrors use-history.ts pattern exactly.
  */
 import useSWR, { mutate as globalMutate } from "swr";
+import { useCallback } from "react";
 import { listScans } from "@/lib/api";
 import type { PaginatedScans } from "@/lib/types";
 
@@ -19,15 +20,28 @@ export function useScans(page = 0) {
       refreshInterval: 15_000,
       // Don't blow away the last good list if a background refresh fails
       // (e.g. backend restart). The UI will keep showing the cached scans
-      // and SWR will retry up to 5 times with exponential backoff.
+      // while SWR retries in the background.
       keepPreviousData: true,
       shouldRetryOnError: true,
-      errorRetryCount: 5,
-      errorRetryInterval: 2_000,
+      // Effectively unlimited — periodic polling will eventually recover.
+      // Without this, after 5 fast failures (e.g. backend booting up) SWR
+      // gives up and the user sees a permanent 'Failed to load' until
+      // they manually click Retry. We'd rather it self-heal on the next
+      // refreshInterval tick.
+      errorRetryCount: 50,
+      errorRetryInterval: 3_000,
       revalidateOnFocus: true,
       revalidateOnReconnect: true,
     }
   );
+
+  // Retry handler that bypasses SWR's error-cache state entirely. Calling
+  // mutate(undefined, { revalidate: true }) wipes the cached error AND
+  // forces a fresh fetch, so the UI swaps from 'Failed to load' to either
+  // the new data or a fresh error — no stuck states.
+  const retry = useCallback(async () => {
+    await mutate(undefined, { revalidate: true, rollbackOnError: false });
+  }, [mutate]);
 
   return {
     scans: data?.items ?? [],
@@ -39,6 +53,7 @@ export function useScans(page = 0) {
     // shouldn't black out the whole panel.
     error: data ? undefined : (error as Error | undefined),
     mutate,
+    retry,
   };
 }
 
