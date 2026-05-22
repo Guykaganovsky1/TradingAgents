@@ -14,10 +14,28 @@
  * aria-live=polite so screen readers announce updates without spamming.
  */
 
+import { useEffect, useState } from "react";
+
 import type { WsStatus } from "@/lib/ws";
 
+/**
+ * Intra-agent progress is asymptotic: each agent owns 1/N of the bar, and
+ * while it's running we fill that slice via `1 - e^(-t/τ)`. τ=90s is tuned
+ * to the qwen2.5:3b reality where most agents finish in 30–120s — at 90s
+ * we'd be at ~63% of the slice, telegraphing "alive, making progress".
+ * Capped at 95% of the slice so we NEVER claim completion that hasn't
+ * actually happened; the jump from 95 → 100% of the slice happens when
+ * the `agent_completed` event arrives and `finished` increments.
+ */
+const AGENT_HALF_LIFE_MS = 90_000;
+const INTRA_AGENT_CAP = 0.95;
+
 interface RunProgressProps {
-  agents: { name: string; status: "pending" | "running" | "done" | "error" }[];
+  agents: {
+    name: string;
+    status: "pending" | "running" | "done" | "error";
+    started_at?: string;
+  }[];
   isComplete: boolean;
   wsStatus: WsStatus;
   decision: string | null;
@@ -44,12 +62,42 @@ export function RunProgress({
   // static 0% bar — telegraphs "the system is working, just hasn't fanned out".
   const indeterminate = total === 0 && !isComplete && !hasError;
 
+  // Tick state — re-renders every 500ms only while there's a running agent.
+  // We need this so the asymptotic intra-step fill actually animates between
+  // `agent_started` and `agent_completed` events (which can be 60-180s apart
+  // when an analyst is making multiple LLM calls).
+  const [now, setNow] = useState(() => Date.now());
+  const runningStartedAt = running?.started_at;
+  useEffect(() => {
+    if (!runningStartedAt || isComplete || hasError) return;
+    const id = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(id);
+    // Re-bind when the running agent changes so the curve restarts from t=0
+    // for the new agent, not from when the previous one started.
+  }, [runningStartedAt, isComplete, hasError]);
+
+  // Asymptotic intra-step progress for the currently-running agent.
+  // Falls back to 0 if no agent is running or started_at is missing.
+  let intraFraction = 0;
+  if (running && runningStartedAt) {
+    const startMs = new Date(runningStartedAt).getTime();
+    if (Number.isFinite(startMs)) {
+      const elapsed = Math.max(0, now - startMs);
+      intraFraction = Math.min(
+        INTRA_AGENT_CAP,
+        1 - Math.exp(-elapsed / AGENT_HALF_LIFE_MS),
+      );
+    }
+  }
+
   // When complete we show 100 regardless of agent tracking, since some runs
-  // short-circuit and never enter the per-agent loop.
+  // short-circuit and never enter the per-agent loop. Otherwise blend the
+  // discrete `finished` count with the asymptotic `intraFraction` so the bar
+  // visibly creeps forward between agent boundaries.
   const pct = isComplete
     ? 100
     : total > 0
-      ? Math.round((finished / total) * 100)
+      ? Math.round(((finished + intraFraction) / total) * 100)
       : 0;
 
   let barClass = "bg-indigo-500";
@@ -97,7 +145,7 @@ export function RunProgress({
           />
         ) : (
           <div
-            className={`h-full rounded-full transition-[width] duration-500 ease-out ${barClass}`}
+            className={`h-full rounded-full transition-[width] duration-300 ease-out ${barClass}`}
             style={{ width: `${pct}%` }}
             aria-label={`Progress ${pct}%`}
           />

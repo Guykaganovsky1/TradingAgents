@@ -3,6 +3,9 @@
  * FactorScoreBar — horizontal progress bar for a single scanner factor.
  * Color: emerald >75, amber 50-75, slate <50.
  * Animates from 0 → score on mount (respects prefers-reduced-motion).
+ * When `score` is null (factor failed to compute, e.g. missing API creds)
+ * the bar renders in a muted "unavailable" state with "—" instead of a
+ * number; the failure reason is still surfaced via the signals list below.
  */
 import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
@@ -10,11 +13,11 @@ import { cn } from "@/lib/utils";
 interface FactorScoreBarProps {
   /** Display name for this factor */
   name: string;
-  /** 0-100 score */
-  score: number;
+  /** 0-100 score, or null when the factor couldn't compute */
+  score: number | null;
   /** 0-1 weight */
   weight: number;
-  /** Top-2 signal strings */
+  /** Top-2 signal strings (also carries failure reason when score is null) */
   signals: string[];
   /** Whether to animate the bar on mount */
   animate?: boolean;
@@ -45,21 +48,29 @@ export function FactorScoreBar({
       ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
       : false;
 
+  // Null score = factor unavailable (e.g. credentials missing). Render
+  // a flat muted bar with "—" instead of NaN, and skip the animation.
+  const isUnavailable = score === null;
+  const numericScore = score ?? 0;
+
   useEffect(() => {
     const el = barRef.current;
     if (!el) return;
-    if (!animate || prefersReduced) {
-      el.style.width = `${score}%`;
+    if (isUnavailable) {
+      el.style.width = "0%";
       return;
     }
-    // Start at 0, animate to target
+    if (!animate || prefersReduced) {
+      el.style.width = `${numericScore}%`;
+      return;
+    }
     el.style.width = "0%";
     el.style.transition = "width 0.6s cubic-bezier(0.16,1,0.3,1)";
     const raf = requestAnimationFrame(() => {
-      el.style.width = `${score}%`;
+      el.style.width = `${numericScore}%`;
     });
     return () => cancelAnimationFrame(raf);
-  }, [score, animate, prefersReduced]);
+  }, [numericScore, isUnavailable, animate, prefersReduced]);
 
   return (
     <div className="space-y-1.5">
@@ -74,11 +85,15 @@ export function FactorScoreBar({
         <span
           className={cn(
             "text-xs font-bold tabular-nums shrink-0",
-            scoreTextColor(score)
+            isUnavailable ? "text-slate-500" : scoreTextColor(numericScore),
           )}
-          aria-label={`${name} score: ${score} out of 100`}
+          aria-label={
+            isUnavailable
+              ? `${name} score unavailable`
+              : `${name} score: ${numericScore} out of 100`
+          }
         >
-          {Math.round(score)}
+          {isUnavailable ? "—" : Math.round(numericScore)}
         </span>
       </div>
 
@@ -86,15 +101,28 @@ export function FactorScoreBar({
       <div
         className="h-1.5 w-full rounded-full bg-white/[0.06] overflow-hidden"
         role="progressbar"
-        aria-valuenow={Math.round(score)}
+        aria-valuenow={isUnavailable ? 0 : Math.round(numericScore)}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label={`${name} factor score`}
+        aria-label={
+          isUnavailable
+            ? `${name} factor unavailable`
+            : `${name} factor score`
+        }
       >
         <div
           ref={barRef}
-          className={cn("h-full rounded-full", scoreColor(score))}
-          style={{ width: prefersReduced ? `${score}%` : "0%" }}
+          className={cn(
+            "h-full rounded-full",
+            isUnavailable ? "bg-slate-700" : scoreColor(numericScore),
+          )}
+          style={{
+            width: isUnavailable
+              ? "0%"
+              : prefersReduced
+                ? `${numericScore}%`
+                : "0%",
+          }}
         />
       </div>
 

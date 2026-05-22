@@ -29,6 +29,7 @@ import {
   ClipboardCheck,
   Loader2,
   AlertTriangle,
+  ShieldAlert,
 } from "lucide-react";
 import { getRunReport } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -60,6 +61,16 @@ const SECTIONS: SectionDef[] = [
     agent: "Portfolio Manager",
     Icon: ClipboardCheck,
     accent: "emerald",
+  },
+  {
+    // Placed right under the final decision: this is the adversarial
+    // critique of THAT decision, so it should read as the immediate
+    // counter-balance to the verdict above it.
+    key: "coding_plan_report",
+    label: "Adversarial Critique",
+    agent: "Coding Planner (Codex)",
+    Icon: ShieldAlert,
+    accent: "rose",
   },
   {
     key: "trader_investment_decision",

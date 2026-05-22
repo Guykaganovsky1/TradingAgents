@@ -25,6 +25,9 @@ VALID_SECTIONS = {
     "risk_debate_state",
     "trader_investment_decision",
     "final_trade_decision",
+    # Coding Planner critique — only present when codex_planner_enabled
+    # was set in settings for the run. Missing key returns None upstream.
+    "coding_plan_report",
 }
 
 

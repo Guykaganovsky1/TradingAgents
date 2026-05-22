@@ -5,6 +5,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode
 
 from tradingagents.agents import *
+from tradingagents.agents.managers.coding_planner import create_coding_planner
 from tradingagents.agents.utils.agent_states import AgentState
 
 from .conditional_logic import ConditionalLogic
@@ -19,12 +20,21 @@ class GraphSetup:
         deep_thinking_llm: Any,
         tool_nodes: Dict[str, ToolNode],
         conditional_logic: ConditionalLogic,
+        use_coding_planner: bool = False,
     ):
-        """Initialize with required components."""
+        """Initialize with required components.
+
+        Args:
+            use_coding_planner: When True, inserts a Codex-CLI-powered
+                adversarial critique node after the Portfolio Manager.
+                Backward-compatible default (False) keeps legacy graphs
+                unchanged.
+        """
         self.quick_thinking_llm = quick_thinking_llm
         self.deep_thinking_llm = deep_thinking_llm
         self.tool_nodes = tool_nodes
         self.conditional_logic = conditional_logic
+        self.use_coding_planner = use_coding_planner
 
     def setup_graph(
         self, selected_analysts=["market", "social", "news", "fundamentals"]
@@ -181,6 +191,16 @@ class GraphSetup:
             },
         )
 
-        workflow.add_edge("Portfolio Manager", END)
+        # Optional Coding Planner: adversarial critique step at the very end.
+        # Off by default for backward compatibility. When enabled via
+        # config["use_codex_coding_planner"], the PM no longer ends the run
+        # — it hands its decision off for a final code-reviewer-style audit
+        # produced by the Codex CLI subprocess wrapper.
+        if self.use_coding_planner:
+            workflow.add_node("Coding Planner", create_coding_planner())
+            workflow.add_edge("Portfolio Manager", "Coding Planner")
+            workflow.add_edge("Coding Planner", END)
+        else:
+            workflow.add_edge("Portfolio Manager", END)
 
         return workflow

@@ -109,11 +109,17 @@ class TradingAgentsGraph:
             max_debate_rounds=self.config["max_debate_rounds"],
             max_risk_discuss_rounds=self.config["max_risk_discuss_rounds"],
         )
+        # Optional Codex-CLI-backed Coding Planner: wired through from
+        # dashboard settings via config["use_codex_coding_planner"]. The
+        # underlying agent uses the codex binary on PATH and the user's
+        # ChatGPT subscription auth — no LangChain client involved.
+        use_coding_planner = bool(self.config.get("use_codex_coding_planner", False))
         self.graph_setup = GraphSetup(
             self.quick_thinking_llm,
             self.deep_thinking_llm,
             self.tool_nodes,
             self.conditional_logic,
+            use_coding_planner=use_coding_planner,
         )
 
         self.propagator = Propagator(

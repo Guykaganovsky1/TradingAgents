@@ -444,8 +444,14 @@ export async function getTokenStats(days = 7): Promise<TokenDay[]> {
 // Scanner
 // ---------------------------------------------------------------------------
 
+// A factor object is always present in the response (the scanner emits one
+// per factor regardless of outcome), but its `score` may be null when the
+// factor failed to compute — e.g. sentiment without Reddit creds returns
+// {score: null, weight: 0.2, signals: ["Reddit creds not configured"]}.
+// Treating score as strictly numeric here causes the entire scans-list
+// fetch to fail Zod validation → "Failed to load scan history".
 const FactorScoreSchema = z.object({
-  score: z.number(),
+  score: z.number().nullable(),
   weight: z.number(),
   signals: z.array(z.string()),
 }).nullable();

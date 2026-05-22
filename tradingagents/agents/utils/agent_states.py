@@ -70,4 +70,10 @@ class AgentState(MessagesState):
         RiskDebateState, "Current state of the debate on evaluating risk"
     ]
     final_trade_decision: Annotated[str, "Final decision made by the Risk Analysts"]
+
+    # Adversarial code-reviewer critique produced by the optional Coding
+    # Planner node (powered by the Codex CLI). Empty string when the
+    # planner is disabled in config; missing entirely on legacy runs.
+    coding_plan_report: Annotated[str, "Adversarial critique of the full analysis pipeline produced by the Coding Planner"]
+
     past_context: Annotated[str, "Memory log context injected at run start (same-ticker decisions + cross-ticker lessons)"]

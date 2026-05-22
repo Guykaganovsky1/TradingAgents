@@ -8,7 +8,9 @@ _OPENAI_COMPATIBLE = (
     "qwen", "qwen-cn",
     "glm", "glm-cn",
     "minimax", "minimax-cn",
-    "ollama", "openrouter",
+    "openrouter",
+    # NB: 'ollama' is intentionally NOT here — it routes through OllamaClient
+    # so qwen3-style thinking models can be controlled via the native /api/chat.
     "moonshot",  # Moonshot AI — Kimi K2 + moonshot-v1 family, OpenAI-compatible
     "kimi",      # Kimi for Coding — kimi-for-coding model, UA-gated endpoint
     "opencode-go",  # OpenCode Go proxy — Kimi K2.6, GLM-5.1, DeepSeek V4, Qwen 3.6, …
@@ -44,6 +46,10 @@ def create_llm_client(
     if provider_lower in _OPENAI_COMPATIBLE:
         from .openai_client import OpenAIClient
         return OpenAIClient(model, base_url, provider=provider_lower, **kwargs)
+
+    if provider_lower == "ollama":
+        from .ollama_client import OllamaClient
+        return OllamaClient(model, base_url, **kwargs)
 
     if provider_lower == "anthropic":
         from .anthropic_client import AnthropicClient

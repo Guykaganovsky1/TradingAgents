@@ -31,6 +31,9 @@ const AGENT_ORDER = [
   "Bear Researcher",
   "Portfolio Manager",
   "Trader",
+  // Adversarial critique step — runs only when the Coding Planner toggle
+  // is enabled. Placed last because it audits everything above it.
+  "Coding Planner",
 ];
 
 // Module-level promise cache so multiple hook instances share one fetch.

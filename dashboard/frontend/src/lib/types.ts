@@ -27,7 +27,10 @@ export type ReportSection =
   | "investment_debate_state"
   | "trader_investment_decision"
   | "risk_debate_state"
-  | "final_trade_decision";
+  | "final_trade_decision"
+  // Adversarial critique from the Codex-CLI-powered Coding Planner.
+  // Only present when the Coding Planner toggle was enabled at run start.
+  | "coding_plan_report";
 
 // ---------------------------------------------------------------------------
 // Watchlist
@@ -336,7 +339,9 @@ export type FactorKey = "technical" | "news" | "sentiment" | "fundamental";
 export type UniverseKey = "watchlist" | "sp500" | "nasdaq100" | "crypto";
 
 export interface FactorScore {
-  score: number;   // 0-100
+  // null when the factor failed to compute (missing API creds, network, etc.)
+  // The reason is surfaced via the signals[] field of the same factor object.
+  score: number | null;   // 0-100 or null when unavailable
   weight: number;  // 0-1
   signals: string[];
 }

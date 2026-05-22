@@ -265,12 +265,19 @@ class OpenAIClient(BaseLLMClient):
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]
 
-        # Network resilience defaults. The OpenAI SDK ships max_retries=2 and
-        # no read timeout — fine for OpenAI's own infra, fragile against
-        # third-party proxies (OpenCode Go, OpenRouter, etc.) which can drop
-        # idle connections mid-stream with httpx.RemoteProtocolError. We
-        # bump both unless the caller explicitly set their own.
-        llm_kwargs.setdefault("max_retries", 5)
+        # Network resilience defaults. Three competing pressures:
+        #  - Genuine LLM calls (esp. Kimi K2.6 with reasoning_content) can
+        #    take 30-90s for a complex Market Analyst response. So timeout
+        #    must be > 90s to avoid spurious cancellation of healthy calls.
+        #  - Third-party proxies (OpenCode Go, OpenRouter) occasionally
+        #    return 500/502 or drop connections. retries cover this.
+        #  - But timeout × retries is the worst-case hang the user sees.
+        #    A 10-minute "frozen" run feels broken even if it's "retrying".
+        # Compromise: 120s timeout (covers slow models), 3 retries (covers
+        # transient 5xx without compounding too far). Worst case 480s = 8min
+        # per call — long but surfaces errors before the user gives up.
+        # setdefault() respects user overrides via kwargs.
+        llm_kwargs.setdefault("max_retries", 3)
         llm_kwargs.setdefault("timeout", 120.0)
 
         # Native OpenAI: use Responses API for consistent behavior across
